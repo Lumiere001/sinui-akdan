@@ -1,0 +1,20 @@
+/* App-wide custom styles */
+
+.gold {
+  @apply text-amber-400;
+}
+
+/* Override DaisyUI default colors */
+:root {
+  --primary: #d4a853;
+  --secondary: #7c2d3e;
+  --accent: #047857;
+  --neutral: #0f172a;
+  --base-100: #0f172a;
+  --base-200: #1a2541;
+  --base-300: #243558;
+  --info: #3b82f6;
+  --success: #047857;
+  --warning: #f59e0b;
+  --error: #7c2d3e;
+}

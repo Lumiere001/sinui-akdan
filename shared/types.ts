@@ -68,6 +68,7 @@ export interface ClientToServerEvents {
   'player:join': (data: { teamId: number; playerId: string }) => void;
   'player:position': (data: PlayerPosition) => void;
   'player:checkLocation': (data: { locationId: string }) => void;
+  'admin:join': () => void;
   'admin:startRound': (round: number) => void;
   'admin:stopRound': () => void;
   'admin:resetGame': () => void;

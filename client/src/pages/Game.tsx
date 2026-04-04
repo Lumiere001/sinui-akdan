@@ -11,7 +11,7 @@ import {
   getDirectionBearing,
   getTeamRound,
 } from '../data/gameData'
-import type { Location } from '../../../shared/types'
+import type { Location, PlayerPosition } from '../../../shared/types'
 
 const DIRECTION_ARROWS = ['↑', '↗', '→', '↘', '↓', '↙', '←', '↖'] as const
 
@@ -53,6 +53,7 @@ export function Game() {
   const [serverTime, setServerTime] = useState<{ startTime: number; duration: number } | null>(null)
   const [timerDisplay, setTimerDisplay] = useState('00:00')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [teamMembers, setTeamMembers] = useState<PlayerPosition[]>([])
 
   // 팀 설정
   const teamConfig = getTeamConfig(teamId)
@@ -109,6 +110,12 @@ export function Game() {
       setTimeout(() => setMemberCount(null), 5000)
     })
 
+    // 팀원 위치 업데이트
+    socket.on('team:positions', (positions: PlayerPosition[]) => {
+      // 자신을 제외한 팀원들의 위치만 저장
+      setTeamMembers(positions.filter(p => p.playerId !== playerId))
+    })
+
     // 에러
     socket.on('error', (data) => {
       setErrorMsg(data.message)
@@ -120,6 +127,7 @@ export function Game() {
       socket.off('team:unlock')
       socket.off('team:wrong')
       socket.off('team:memberCount')
+      socket.off('team:positions')
       socket.off('error')
     }
   }, [socket, teamId, playerId, navigate])
@@ -227,6 +235,7 @@ export function Game() {
         <MapView
           locations={visibleLocations}
           playerPosition={position ? { lat: position.lat, lng: position.lng } : null}
+          teamMemberPositions={teamMembers.filter(m => m.lat !== 0 && m.lng !== 0).map(m => ({ lat: m.lat, lng: m.lng }))}
           onLocationSelect={handleCheckLocation}
         />
       </div>

@@ -10,18 +10,21 @@ declare global {
 interface MapViewProps {
   locations: Location[]
   playerPosition: { lat: number; lng: number } | null
+  teamMemberPositions?: { lat: number; lng: number }[]
   onLocationSelect?: (locationId: string) => void
 }
 
 export function MapView({
   locations,
   playerPosition,
+  teamMemberPositions = [],
   onLocationSelect,
 }: MapViewProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
   const markersRef = useRef<Map<string, any>>(new Map())
   const playerMarkerRef = useRef<any>(null)
+  const teamMemberMarkersRef = useRef<any[]>([])
   const [mapLoaded, setMapLoaded] = useState(false)
   const [mapError, setMapError] = useState(false)
 
@@ -120,6 +123,28 @@ export function MapView({
     mapInstanceRef.current.panTo(playerPos)
   }, [playerPosition, mapLoaded])
 
+  // Update team member markers
+  useEffect(() => {
+    if (!mapInstanceRef.current || !mapLoaded) return
+    const { kakao } = window
+
+    // 기존 팀원 마커 제거
+    teamMemberMarkersRef.current.forEach((marker) => marker.setMap(null))
+    teamMemberMarkersRef.current = []
+
+    // 팀원 위치 마커 생성 (녹색 점)
+    teamMemberPositions.forEach((pos) => {
+      const markerPos = new kakao.maps.LatLng(pos.lat, pos.lng)
+      const marker = new kakao.maps.Marker({
+        position: markerPos,
+        image: createTeamMemberMarkerImage(),
+        zIndex: 5,
+      })
+      marker.setMap(mapInstanceRef.current)
+      teamMemberMarkersRef.current.push(marker)
+    })
+  }, [teamMemberPositions, mapLoaded])
+
   // Relayout on resize
   useEffect(() => {
     if (!mapInstanceRef.current || !mapRef.current) return
@@ -203,4 +228,32 @@ function createPlayerMarkerImage() {
 
   const imageData = canvas.toDataURL()
   return new window.kakao.maps.MarkerImage(imageData, new window.kakao.maps.Size(30, 30), { offset: new window.kakao.maps.Point(15, 15) })
+}
+
+function createTeamMemberMarkerImage() {
+  const canvas = document.createElement('canvas')
+  canvas.width = 24
+  canvas.height = 24
+  const ctx = canvas.getContext('2d')!
+
+  // 바깥 원 (연한 녹색)
+  ctx.fillStyle = 'rgba(111, 234, 141, 0.2)'
+  ctx.beginPath()
+  ctx.arc(12, 12, 11, 0, Math.PI * 2)
+  ctx.fill()
+
+  // 중간 원
+  ctx.fillStyle = 'rgba(111, 234, 141, 0.5)'
+  ctx.beginPath()
+  ctx.arc(12, 12, 7, 0, Math.PI * 2)
+  ctx.fill()
+
+  // 안쪽 원 (진한 녹색)
+  ctx.fillStyle = '#6fea8d'
+  ctx.beginPath()
+  ctx.arc(12, 12, 4, 0, Math.PI * 2)
+  ctx.fill()
+
+  const imageData = canvas.toDataURL()
+  return new window.kakao.maps.MarkerImage(imageData, new window.kakao.maps.Size(24, 24), { offset: new window.kakao.maps.Point(12, 12) })
 }

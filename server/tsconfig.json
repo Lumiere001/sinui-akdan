@@ -11,7 +11,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "outDir": "./dist",
-    "rootDir": "..",
+        "rootDir": ".",
     "declaration": true,
     "sourceMap": true,
     "noImplicitAny": true,
@@ -22,6 +22,6 @@
     "noImplicitThis": true,
     "alwaysStrict": true
   },
-  "include": ["./**/*.ts", "../shared/*.ts"],
+    "include": ["./**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

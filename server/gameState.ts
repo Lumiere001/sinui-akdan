@@ -1,4 +1,4 @@
-import type { GameState, PlayerPosition, TeamState } from '../shared/types.js';
+import type { GameState, PlayerPosition, TeamState } from './shared/types.js';
 
 /**
  * Game state management - maintains in-memory state of the current game

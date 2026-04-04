@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { gameStateManager } from './gameState.js';
 import { gameData } from './gameData.js';
-import type { PlayerPosition } from '../shared/types';
+import type { PlayerPosition } from './shared/types';
 
 /**
  * Admin REST API routes for game management

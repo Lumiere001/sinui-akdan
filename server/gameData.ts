@@ -1,4 +1,4 @@
-import type { GameData, Location, TeamConfig } from '../shared/types.js';
+import type { GameData, Location, TeamConfig } from './shared/types.js';
 
 /**
  * All 8 locations in Yanglim Village (양림마을)

@@ -10,7 +10,7 @@ import type {
   ClientToServerEvents,
   ServerToClientEvents,
   PlayerPosition,
-} from '../shared/types';
+} from './shared/types';
 
 // ========== Configuration ==========
 const PORT = 3001;

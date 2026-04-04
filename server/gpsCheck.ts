@@ -1,4 +1,4 @@
-import type { Location, PlayerPosition } from '../shared/types.js';
+import type { Location, PlayerPosition } from './shared/types.js';
 import { getLocation } from './gameData.js';
 
 /**

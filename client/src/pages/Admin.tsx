@@ -30,8 +30,8 @@ export function Admin() {
       setGameState(state)
     })
 
-    // admin room join을 위해 임시 join
-    socket.emit('player:join', { teamId: 0, playerId: 'admin' })
+    // admin 룸에 참가
+    socket.emit('admin:join')
 
     return () => {
       socket.off('game:state')

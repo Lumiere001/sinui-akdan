@@ -46,11 +46,15 @@ const io = new SocketIOServer<ClientToServerEvents, ServerToClientEvents>(server
 });
 
 /**
- * Broadcast game state to all connected admin clients
+ * Broadcast game state to all connected clients (admin + all teams)
  */
 function broadcastGameState(): void {
   const state = gameStateManager.getState();
   io.to('admin').emit('game:state', state);
+  // 모든 팀 룸에도 게임 상태 전송
+  for (let t = 1; t <= 10; t++) {
+    io.to(`team:${t}`).emit('game:state', state);
+  }
 }
 
 /**
@@ -70,6 +74,17 @@ io.on('connection', (socket) => {
    * Event: player:join
    * Data: { teamId: number, playerId: string }
    */
+  /**
+   * Admin joins the admin room
+   * Event: admin:join
+   */
+  socket.on('admin:join', () => {
+    socket.join('admin');
+    console.log(`[Admin] Admin client joined (${socket.id})`);
+    // 즉시 현재 게임 상태 전송
+    socket.emit('game:state', gameStateManager.getState());
+  });
+
   socket.on('player:join', (data) => {
     const { teamId, playerId } = data;
 
@@ -96,6 +111,9 @@ io.on('connection', (socket) => {
       socket.join(teamRoom);
 
       console.log(`[Team ${teamId}] Player ${playerId} joined (${socket.id})`);
+
+      // Send current game state to this player
+      socket.emit('game:state', gameStateManager.getState());
 
       // Notify team members about new join
       io.to(teamRoom).emit('team:positions', gameStateManager.getTeamMembers(teamId));

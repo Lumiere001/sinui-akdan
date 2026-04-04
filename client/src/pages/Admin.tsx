@@ -4,7 +4,6 @@ import { motion } from 'framer-motion'
 import { useSocket } from '../hooks/useSocket'
 import { useTimer } from '../hooks/useTimer'
 import type { GameState, PlayerPosition } from '../../../shared/types'
-import { LogOut, Play, Square, RotateCcw, Wifi, WifiOff, Users, Clock, Shield, MapPin, CheckCircle } from 'lucide-react'
 import { TEAMS, getTeamLocations } from '../data/gameData'
 
 export function Admin() {
@@ -40,105 +39,168 @@ export function Admin() {
   const handleStopRound = () => { if (socket) socket.emit('admin:stopRound') }
   const handleResetGame = () => { if (socket && confirm('게임을 초기화하시겠습니까?')) socket.emit('admin:resetGame') }
 
+  // Login screen
   if (!isAuthenticated) {
     return (
-      <motion.div className="noise flex flex-col items-center justify-center min-h-screen w-full px-5"
-        style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(212,168,83,0.06) 0%, #0a0f1e 60%)' }}
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <motion.div className="w-full max-w-xs" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.1 }}>
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl glass-gold glow-gold mb-5">
-              <Shield className="w-8 h-8 text-amber-400" />
+      <div style={{
+        minHeight: '100vh', background: '#0a0a0f',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        padding: '32px 24px',
+      }}>
+        <motion.div
+          style={{ width: '100%', maxWidth: '300px' }}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+        >
+          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+            <div style={{
+              width: '56px', height: '56px', borderRadius: '50%',
+              background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '24px', marginBottom: '16px',
+            }}>
+              🔒
             </div>
-            <h1 className="text-2xl font-extrabold text-white mb-1">관리자</h1>
-            <p className="text-xs text-gray-500">비밀번호를 입력하세요</p>
+            <h1 style={{ fontSize: '20px', fontWeight: '700', color: 'rgba(255,255,255,0.9)', marginBottom: '4px' }}>관리자</h1>
+            <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)' }}>비밀번호를 입력하세요</p>
           </div>
-          <div className="space-y-4">
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit()} placeholder="비밀번호"
-              className="w-full px-4 py-3.5 rounded-xl glass text-white text-sm placeholder-gray-500 focus:border-amber-400/30 focus:outline-none focus:ring-1 focus:ring-amber-400/20 transition-all" autoFocus />
-            <button onClick={handlePasswordSubmit}
-              className="w-full py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 rounded-xl font-bold text-sm glow-gold hover:shadow-xl transition-all">
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <input
+              type="password" value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
+              placeholder="비밀번호"
+              style={{
+                width: '100%', padding: '14px 16px',
+                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: '12px', color: 'rgba(255,255,255,0.9)', fontSize: '15px',
+                fontFamily: "'Noto Serif KR', serif", outline: 'none',
+              }}
+              autoFocus
+            />
+            <button
+              onClick={handlePasswordSubmit}
+              style={{
+                width: '100%', padding: '14px',
+                background: 'rgba(255,255,255,0.9)', color: '#0a0a0f',
+                border: 'none', borderRadius: '12px', fontSize: '15px', fontWeight: '700',
+                cursor: 'pointer', fontFamily: "'Noto Serif KR', serif",
+              }}
+            >
               로그인
             </button>
           </div>
         </motion.div>
-      </motion.div>
+      </div>
     )
   }
 
+  // Dashboard
   const totalPlayers = Object.values(allPositions).reduce((sum, arr) => sum + arr.length, 0)
 
   return (
-    <motion.div className="noise flex flex-col h-screen w-full" style={{ background: '#0a0f1e' }}
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+    <div style={{ minHeight: '100vh', background: '#0a0a0f' }}>
       {/* Header */}
-      <div className="glass border-b border-white/[0.04] px-4 py-3 flex items-center justify-between z-20">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-amber-400/10 flex items-center justify-center">
-            <Shield className="w-4 h-4 text-amber-400" />
-          </div>
-          <div>
-            <h1 className="text-sm font-bold text-white">관리자 대시보드</h1>
-            <div className="flex items-center gap-2 text-[10px] text-gray-500">
-              <span className="flex items-center gap-1">
-                {isConnected ? <Wifi className="w-3 h-3 text-emerald-400" /> : <WifiOff className="w-3 h-3 text-red-400" />}
-                {isConnected ? '연결됨' : '연결 해제'}
-              </span>
-              <span>·</span>
-              <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {totalPlayers}명</span>
-            </div>
+      <div style={{
+        padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)',
+        background: 'rgba(10,10,15,0.95)', backdropFilter: 'blur(12px)',
+        position: 'sticky', top: 0, zIndex: 100,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      }}>
+        <div>
+          <div style={{ fontSize: '15px', fontWeight: '700', color: 'rgba(255,255,255,0.85)' }}>관리자 대시보드</div>
+          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '2px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isConnected ? '#6fea8d' : '#ff6b6b', display: 'inline-block' }} />
+              {isConnected ? '연결됨' : '해제'}
+            </span>
+            <span>·</span>
+            <span>{totalPlayers}명 접속</span>
           </div>
         </div>
-        <button onClick={() => { setIsAuthenticated(false); navigate('/') }}
-          className="p-2 rounded-lg glass text-red-400/70 hover:text-red-400 hover:bg-red-500/10 transition-all">
-          <LogOut className="w-4 h-4" />
+        <button
+          onClick={() => { setIsAuthenticated(false); navigate('/') }}
+          style={{
+            background: 'rgba(255,100,100,0.1)', border: '1px solid rgba(255,100,100,0.2)',
+            borderRadius: '8px', padding: '6px 14px', color: '#ff6b6b',
+            fontSize: '12px', fontWeight: '600', cursor: 'pointer',
+          }}
+        >
+          나가기
         </button>
       </div>
 
-      {/* Main */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div style={{ padding: '16px' }}>
         {/* Controls */}
-        <div className="flex gap-3">
-          <div className="flex-1 glass rounded-2xl p-4 space-y-3">
-            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider">게임 제어</h2>
-            <div className="grid grid-cols-2 gap-2">
+        <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+          <div style={{
+            flex: 1, padding: '16px',
+            background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)',
+            borderRadius: '14px',
+          }}>
+            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase' as const, letterSpacing: '0.1em', fontWeight: '600', marginBottom: '12px' }}>
+              게임 제어
+            </div>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
               <button onClick={() => handleStartRound(1)} disabled={gameState?.isActive}
-                className="py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-emerald-500/15 text-emerald-400 border border-emerald-400/20 hover:bg-emerald-500/25">
-                <Play className="w-3.5 h-3.5" /> 시작
+                style={{
+                  flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid rgba(100,255,150,0.2)',
+                  background: 'rgba(100,255,150,0.08)', color: '#6fea8d', fontSize: '12px', fontWeight: '600',
+                  cursor: gameState?.isActive ? 'not-allowed' : 'pointer', opacity: gameState?.isActive ? 0.3 : 1,
+                }}>
+                ▶ 시작
               </button>
               <button onClick={handleStopRound} disabled={!gameState?.isActive}
-                className="py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-red-500/15 text-red-400 border border-red-400/20 hover:bg-red-500/25">
-                <Square className="w-3.5 h-3.5" /> 중지
+                style={{
+                  flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,100,100,0.2)',
+                  background: 'rgba(255,100,100,0.08)', color: '#ff6b6b', fontSize: '12px', fontWeight: '600',
+                  cursor: !gameState?.isActive ? 'not-allowed' : 'pointer', opacity: !gameState?.isActive ? 0.3 : 1,
+                }}>
+                ■ 중지
               </button>
             </div>
             <button onClick={handleResetGame}
-              className="w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all bg-amber-500/15 text-amber-400 border border-amber-400/20 hover:bg-amber-500/25">
-              <RotateCcw className="w-3.5 h-3.5" /> 초기화
+              style={{
+                width: '100%', padding: '10px', borderRadius: '8px',
+                border: '1px solid rgba(255,200,50,0.2)', background: 'rgba(255,200,50,0.08)',
+                color: '#ffc832', fontSize: '12px', fontWeight: '600', cursor: 'pointer',
+              }}>
+              ↻ 초기화
             </button>
           </div>
-          <div className="glass-gold glow-gold rounded-2xl p-4 flex flex-col items-center justify-center min-w-[140px]">
-            <div className="flex items-center gap-1.5 mb-2">
-              <Clock className="w-3.5 h-3.5 text-amber-400/60" />
-              <span className="text-[10px] text-amber-400/60 font-semibold uppercase tracking-wider">남은 시간</span>
+
+          {/* Timer */}
+          <div style={{
+            minWidth: '130px', padding: '16px',
+            background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)',
+            borderRadius: '14px', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center',
+          }}>
+            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginBottom: '8px', fontWeight: '600', letterSpacing: '0.05em' }}>
+              남은 시간
             </div>
-            <p className="text-3xl font-extrabold text-gradient-gold tabular-nums">
+            <div style={{ fontSize: '28px', fontWeight: '700', fontFamily: 'monospace', color: 'rgba(255,255,255,0.8)' }}>
               {timer.minutes.toString().padStart(2, '0')}:{timer.seconds.toString().padStart(2, '0')}
-            </p>
-            <div className="mt-2 w-full h-1.5 rounded-full bg-black/20 overflow-hidden">
-              <div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-500 transition-all duration-1000"
-                style={{ width: `${timer.progress * 100}%` }} />
+            </div>
+            <div style={{ marginTop: '8px', height: '3px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${timer.progress * 100}%`, background: 'linear-gradient(90deg, #6fea8d, #4ecdc4)', borderRadius: '2px', transition: 'width 1s' }} />
             </div>
           </div>
         </div>
 
         {/* Team Progress */}
-        <div className="glass rounded-2xl p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider">팀별 진행 현황</h2>
-            <span className="text-[10px] text-gray-600">각 팀 5개 장소 배정</span>
+        <div style={{
+          padding: '18px',
+          background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)',
+          borderRadius: '14px',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase' as const, letterSpacing: '0.1em', fontWeight: '600' }}>
+              팀별 진행 현황
+            </span>
+            <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)' }}>각 팀 5개 장소</span>
           </div>
-          <div className="space-y-2.5">
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {TEAMS.map((team) => {
               const teamLocs = getTeamLocations(team.teamId)
               const positions = allPositions[team.teamId] || []
@@ -146,41 +208,58 @@ export function Admin() {
               const foundCount = teamState?.unlockedLocation ? 1 : 0
 
               return (
-                <div key={team.teamId} className="p-3.5 rounded-xl border border-white/[0.04] bg-white/[0.02] hover:bg-white/[0.04] transition-all">
-                  <div className="flex items-center justify-between mb-2.5">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${
-                        foundCount >= 5 ? 'bg-emerald-400/20 text-emerald-400' : foundCount > 0 ? 'bg-amber-400/15 text-amber-400' : 'bg-white/[0.06] text-gray-400'
-                      }`}>{team.teamId}</div>
+                <div key={team.teamId} style={{
+                  padding: '14px 16px',
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid rgba(255,255,255,0.04)',
+                  borderRadius: '10px',
+                  transition: 'all 0.3s',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        width: '28px', height: '28px', borderRadius: '8px',
+                        background: foundCount > 0 ? 'rgba(100,255,150,0.15)' : 'rgba(255,255,255,0.06)',
+                        fontSize: '12px', fontWeight: '700', fontFamily: 'monospace',
+                        color: foundCount > 0 ? '#6fea8d' : 'rgba(255,255,255,0.4)',
+                      }}>
+                        {team.teamId}
+                      </span>
                       <div>
-                        <span className="font-bold text-white text-sm">팀 {team.teamId}</span>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <Users className="w-3 h-3 text-gray-600" />
-                          <span className="text-[10px] text-gray-500">{positions.length}명 접속</span>
-                        </div>
+                        <span style={{ fontSize: '14px', fontWeight: '600', color: 'rgba(255,255,255,0.8)' }}>팀 {team.teamId}</span>
+                        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', marginLeft: '8px' }}>{positions.length}명</span>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <span className={`text-lg font-extrabold tabular-nums ${
-                        foundCount >= 5 ? 'text-emerald-400' : foundCount > 0 ? 'text-amber-400' : 'text-gray-600'
-                      }`}>{foundCount}</span>
-                      <span className="text-gray-600 text-sm font-bold"> / 5</span>
+                    <div style={{ fontSize: '16px', fontWeight: '700', fontFamily: 'monospace', color: foundCount > 0 ? '#6fea8d' : 'rgba(255,255,255,0.2)' }}>
+                      {foundCount}<span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '13px' }}>/5</span>
                     </div>
                   </div>
-                  <div className="w-full h-2 rounded-full bg-white/[0.04] overflow-hidden">
-                    <motion.div className={`h-full rounded-full ${
-                      foundCount >= 5 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'
-                      : foundCount > 0 ? 'bg-gradient-to-r from-amber-500 to-amber-400' : 'bg-gray-700'
-                    }`} initial={{ width: 0 }} animate={{ width: `${(foundCount / 5) * 100}%` }} transition={{ duration: 0.5 }} />
+
+                  {/* Mini progress */}
+                  <div style={{ height: '2px', background: 'rgba(255,255,255,0.04)', borderRadius: '1px', overflow: 'hidden' }}>
+                    <motion.div
+                      style={{
+                        height: '100%', borderRadius: '1px',
+                        background: foundCount > 0 ? 'linear-gradient(90deg, #6fea8d, #4ecdc4)' : 'transparent',
+                      }}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(foundCount / 5) * 100}%` }}
+                      transition={{ duration: 0.5 }}
+                    />
                   </div>
-                  <div className="flex items-center gap-2 mt-2.5">
+
+                  {/* Location names */}
+                  <div style={{ display: 'flex', gap: '6px', marginTop: '8px', flexWrap: 'wrap' as const }}>
                     {teamLocs.map((loc, idx) => (
-                      <div key={loc.id} className="flex items-center gap-1">
-                        <div className={`w-5 h-5 rounded-md flex items-center justify-center ${idx < foundCount ? 'bg-emerald-400/20' : 'bg-white/[0.04]'}`}>
-                          {idx < foundCount ? <CheckCircle className="w-3 h-3 text-emerald-400" /> : <MapPin className="w-3 h-3 text-gray-600" />}
-                        </div>
-                        <span className={`text-[9px] font-medium ${idx < foundCount ? 'text-emerald-400/70' : 'text-gray-600'}`}>{loc.name.slice(0, 3)}</span>
-                      </div>
+                      <span key={loc.id} style={{
+                        fontSize: '10px', padding: '2px 8px', borderRadius: '4px',
+                        background: idx < foundCount ? 'rgba(100,255,150,0.1)' : 'rgba(255,255,255,0.03)',
+                        color: idx < foundCount ? '#6fea8d' : 'rgba(255,255,255,0.25)',
+                        border: `1px solid ${idx < foundCount ? 'rgba(100,255,150,0.15)' : 'rgba(255,255,255,0.04)'}`,
+                      }}>
+                        {loc.name.slice(0, 4)}
+                      </span>
                     ))}
                   </div>
                 </div>
@@ -189,6 +268,6 @@ export function Admin() {
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   )
 }

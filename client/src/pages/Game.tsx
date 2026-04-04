@@ -5,14 +5,25 @@ import { useSocket } from '../hooks/useSocket'
 import { useGPS } from '../hooks/useGPS'
 import { useTimer } from '../hooks/useTimer'
 import { MapView } from '../components/MapView'
-import { Timer } from '../components/Timer'
 import { HintCard } from '../components/HintCard'
 import { getTeamLocations, calculateDistance } from '../data/gameData'
 import type { Location, GameState } from '../../../shared/types'
-import {
-  MapPin, AlertCircle, Wifi, WifiOff, Map, CheckCircle, Navigation,
-  ChevronRight, ChevronLeft, Sparkles
-} from 'lucide-react'
+
+function formatDistance(meters: number) {
+  if (meters === Infinity) return '--'
+  if (meters < 1000) return `${Math.round(meters)}m`
+  return `${(meters / 1000).toFixed(1)}km`
+}
+
+function getBearingArrow(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const dLon = ((lng2 - lng1) * Math.PI) / 180
+  const y = Math.sin(dLon) * Math.cos((lat2 * Math.PI) / 180)
+  const x = Math.cos((lat1 * Math.PI) / 180) * Math.sin((lat2 * Math.PI) / 180) -
+    Math.sin((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.cos(dLon)
+  const bearing = ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360
+  const arrows = ['↑', '↗', '→', '↘', '↓', '↙', '←', '↖']
+  return arrows[Math.round(bearing / 45) % 8]
+}
 
 export function Game() {
   const navigate = useNavigate()
@@ -106,196 +117,269 @@ export function Game() {
     }, 1500)
   }, [currentLocation, isCheckingLocation, status, isCurrentFound, socket, teamLocations, currentIndex, foundLocations])
 
-  const formatDistance = (d: number) => {
-    if (d === Infinity) return '--'
-    if (d >= 1000) return `${(d / 1000).toFixed(1)}km`
-    return `${Math.round(d)}m`
-  }
-
-  const gameActive = gameState?.isActive
   const timerExpired = timer.isExpired
   const allFound = teamLocations.length > 0 && teamLocations.every((loc) => foundLocations.has(loc.id))
 
   if (!teamId) return null
 
   return (
-    <motion.div
-      className="noise flex flex-col h-screen w-full overflow-hidden"
-      style={{ background: '#0a0f1e' }}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.4 }}
-    >
-      {/* Top bar */}
-      <div className="glass border-b border-white/[0.04] px-4 py-2.5 flex items-center justify-between gap-2 z-20">
-        <motion.div
-          className="flex items-center gap-2 px-3 py-1.5 rounded-xl glass-gold"
-          animate={{ borderColor: ['rgba(212,168,83,0.15)', 'rgba(212,168,83,0.3)', 'rgba(212,168,83,0.15)'] }}
-          transition={{ duration: 3, repeat: Infinity }}
-        >
-          <div className="w-2 h-2 rounded-full bg-amber-400 pulse-dot" />
-          <span className="text-amber-300 font-bold text-xs">팀 {teamId}</span>
-        </motion.div>
+    <div style={{ minHeight: '100vh', background: '#0a0a0f', display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+      {/* Header */}
+      <div style={{
+        padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)',
+        background: 'rgba(10,10,15,0.95)', backdropFilter: 'blur(12px)',
+        zIndex: 100, position: 'sticky', top: 0,
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: '15px', fontWeight: '700', color: 'rgba(255,255,255,0.85)', letterSpacing: '-0.01em' }}>
+              팀 {teamId}
+            </div>
+            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>
+              {foundLocations.size}/{teamLocations.length} 해금됨
+            </div>
+          </div>
 
-        <div className="flex items-center gap-1.5">
-          {teamLocations.map((loc, idx) => (
-            <div key={loc.id} className={`w-2.5 h-2.5 rounded-full transition-all ${
-              foundLocations.has(loc.id) ? 'bg-emerald-400 shadow-sm shadow-emerald-400/50'
-                : idx === currentIndex ? 'bg-amber-400 pulse-dot' : 'bg-gray-700'
-            }`} />
-          ))}
-          <span className="text-[10px] text-gray-500 font-semibold ml-1">{foundLocations.size}/{teamLocations.length}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {/* Timer */}
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: '18px', fontWeight: '700', color: 'rgba(255,255,255,0.7)', fontFamily: 'monospace' }}>
+                {timer.minutes.toString().padStart(2, '0')}:{timer.seconds.toString().padStart(2, '0')}
+              </div>
+            </div>
+
+            {/* GPS Status */}
+            {gpsError ? (
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ff6b6b' }} />
+            ) : isConnected ? (
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#6fea8d', animation: 'pulse-dot 2s infinite' }} />
+            ) : (
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)' }} />
+            )}
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Timer startTime={gameState?.startTime || null} duration={gameState?.duration || 1800000} />
-          {isConnected ? <Wifi className="w-3.5 h-3.5 text-emerald-400/70" /> : <WifiOff className="w-3.5 h-3.5 text-red-400/70" />}
+        {/* Progress bar */}
+        <div style={{ marginTop: '10px', height: '3px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px', overflow: 'hidden' }}>
+          <div style={{
+            height: '100%', width: `${(foundLocations.size / teamLocations.length) * 100}%`,
+            background: 'linear-gradient(90deg, #6fea8d, #4ecdc4)',
+            borderRadius: '2px', transition: 'width 0.5s ease',
+          }} />
         </div>
       </div>
 
-      {/* Alerts */}
-      <AnimatePresence>
-        {!gameActive && !allFound && (
-          <motion.div className="flex items-center gap-2 px-4 py-2 bg-amber-500/[0.06] border-b border-amber-400/10"
-            initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-            <AlertCircle className="w-3.5 h-3.5 text-amber-400/80 shrink-0" />
-            <span className="text-amber-300/80 text-xs">게임 시작을 기다리는 중...</span>
-          </motion.div>
-        )}
-        {gpsError && (
-          <motion.div className="flex items-center gap-2 px-4 py-2 bg-red-500/[0.06] border-b border-red-400/10"
-            initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-            <AlertCircle className="w-3.5 h-3.5 text-red-400/80 shrink-0" />
-            <span className="text-red-300/80 text-xs">{gpsError}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Map 60% + Card 40% */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="relative" style={{ flex: '0 0 55%' }}>
-          {gpsPosition ? (
-            <MapView
-              locations={teamLocations}
-              playerPosition={{ lat: gpsPosition.lat, lng: gpsPosition.lng }}
-              onLocationSelect={(id) => { const idx = teamLocations.findIndex((l) => l.id === id); if (idx !== -1) setCurrentIndex(idx) }}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center" style={{ background: '#0a0f1e' }}>
-              <div className="text-center text-gray-500">
-                <Map className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                <p className="text-xs font-medium">위치 정보를 기다리는 중...</p>
-              </div>
-            </div>
-          )}
+      {/* GPS Error */}
+      {gpsError && (
+        <div style={{ padding: '10px 20px', background: 'rgba(255,100,100,0.06)', borderBottom: '1px solid rgba(255,100,100,0.1)' }}>
+          <span style={{ fontSize: '12px', color: '#ff6b6b' }}>{gpsError}</span>
         </div>
+      )}
 
-        <div className="flex-1 bg-[#0a0f1e] border-t border-white/[0.06] flex flex-col overflow-hidden">
-          {allFound ? (
-            <div className="flex-1 flex items-center justify-center px-6">
-              <motion.div className="text-center" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-                <Sparkles className="w-12 h-12 text-amber-400 mx-auto mb-4" />
-                <h2 className="text-2xl font-extrabold text-gradient-gold mb-2">미션 완료!</h2>
-                <p className="text-gray-400 text-sm">모든 장소를 찾았습니다</p>
-              </motion.div>
+      {/* Map — 55% */}
+      <div style={{ flex: '0 0 50%', position: 'relative' }}>
+        {gpsPosition ? (
+          <MapView
+            locations={teamLocations}
+            playerPosition={{ lat: gpsPosition.lat, lng: gpsPosition.lng }}
+            onLocationSelect={(id) => { const idx = teamLocations.findIndex((l) => l.id === id); if (idx !== -1) setCurrentIndex(idx) }}
+          />
+        ) : (
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0f' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '32px', marginBottom: '12px' }}>📍</div>
+              <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.3)' }}>위치 정보를 기다리는 중...</p>
             </div>
-          ) : currentLocation ? (
-            <>
-              <div className="px-4 py-3 flex items-center justify-between border-b border-white/[0.04]">
-                <button onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))} disabled={currentIndex === 0}
-                  className="p-2 rounded-lg glass text-gray-400 disabled:opacity-30 disabled:cursor-not-allowed hover:text-white transition-colors">
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <div className="text-center">
-                  <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{currentIndex + 1} / {teamLocations.length}번째 장소</p>
-                  <h3 className="text-base font-bold text-white mt-0.5">{currentLocation.name}</h3>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom panel — 50% */}
+      <div style={{
+        flex: 1, borderTop: '1px solid rgba(255,255,255,0.06)',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+      }}>
+        {allFound ? (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+            <motion.div style={{ textAlign: 'center' }} initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+              <div style={{ fontSize: '40px', marginBottom: '16px' }}>🎵</div>
+              <div style={{ fontSize: '18px', fontWeight: '700', color: '#6fea8d', marginBottom: '6px' }}>모든 단서를 수집했습니다</div>
+              <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)', lineHeight: 1.6 }}>
+                악보를 완성하고<br />센터로 복귀하세요
+              </div>
+            </motion.div>
+          </div>
+        ) : currentLocation ? (
+          <>
+            {/* Location nav */}
+            <div style={{
+              padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              borderBottom: '1px solid rgba(255,255,255,0.04)',
+            }}>
+              <button
+                onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
+                disabled={currentIndex === 0}
+                style={{
+                  background: 'none', border: 'none', color: currentIndex === 0 ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.5)',
+                  fontSize: '20px', cursor: currentIndex === 0 ? 'not-allowed' : 'pointer', padding: '4px 8px',
+                }}
+              >
+                ‹
+              </button>
+
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '2px' }}>
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    width: '24px', height: '24px', borderRadius: '6px',
+                    background: isCurrentFound ? 'rgba(100,255,150,0.15)' : 'rgba(255,255,255,0.08)',
+                    fontSize: '11px', fontWeight: '700', fontFamily: 'monospace',
+                    color: isCurrentFound ? '#6fea8d' : 'rgba(255,255,255,0.5)',
+                  }}>
+                    {currentLocation.id}
+                  </span>
+                  <span style={{ fontSize: '16px', fontWeight: '600', color: 'rgba(255,255,255,0.85)' }}>
+                    {currentLocation.name}
+                  </span>
                 </div>
-                <button onClick={() => setCurrentIndex(Math.min(teamLocations.length - 1, currentIndex + 1))} disabled={currentIndex === teamLocations.length - 1}
-                  className="p-2 rounded-lg glass text-gray-400 disabled:opacity-30 disabled:cursor-not-allowed hover:text-white transition-colors">
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                    isCurrentFound ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-400/20'
-                    : status === 'arrived' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-400/20'
-                    : status === 'approaching' ? 'bg-amber-500/15 text-amber-400 border border-amber-400/20'
-                    : 'bg-white/[0.04] text-gray-400 border border-white/[0.06]'
-                  }`}>
-                    <div className={`w-1.5 h-1.5 rounded-full ${
-                      isCurrentFound ? 'bg-emerald-400' : status === 'arrived' ? 'bg-emerald-400 pulse-dot'
-                      : status === 'approaching' ? 'bg-amber-400 pulse-dot' : 'bg-gray-500'
-                    }`} />
-                    {isCurrentFound ? '발견 완료' : status === 'arrived' ? '도착!' : status === 'approaching' ? '접근 중' : '이동 중'}
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                    <Navigation className="w-3.5 h-3.5 text-blue-400/70" />
-                    <span className="tabular-nums font-medium">{formatDistance(distanceToCurrent)}</span>
-                  </div>
+                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>
+                  {currentIndex + 1} / {teamLocations.length}
                 </div>
-
-                <HintCard hint={currentLocation.hint} />
-
-                {!isCurrentFound && (
-                  <motion.button onClick={handleCheckIn} disabled={status !== 'arrived' || isCheckingLocation}
-                    className={`w-full py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
-                      status === 'arrived'
-                        ? 'bg-gradient-to-r from-emerald-500 to-emerald-400 text-white shadow-lg shadow-emerald-500/20 cursor-pointer glow-emerald'
-                        : 'glass text-gray-600 cursor-not-allowed'
-                    }`}
-                    whileHover={status === 'arrived' ? { scale: 1.02 } : {}}
-                    whileTap={status === 'arrived' ? { scale: 0.98 } : {}}
-                  >
-                    {isCheckingLocation ? (
-                      <motion.div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
-                        animate={{ rotate: 360 }} transition={{ duration: 0.6, repeat: Infinity, ease: 'linear' }} />
-                    ) : <CheckCircle className="w-5 h-5" />}
-                    {isCheckingLocation ? '확인 중...' : status === 'arrived' ? '이 장소 체크인!' : '장소에 도착하면 체크인'}
-                  </motion.button>
-                )}
-                {isCurrentFound && (
-                  <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                    className="w-full py-4 rounded-xl glass-gold glow-gold text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <CheckCircle className="w-5 h-5 text-emerald-400" />
-                      <span className="text-emerald-400 font-bold text-sm">이 장소를 발견했습니다!</span>
-                    </div>
-                  </motion.div>
-                )}
               </div>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center text-gray-600">
-                <MapPin className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                <p className="text-xs font-medium">장소 정보를 불러오는 중...</p>
-              </div>
+
+              <button
+                onClick={() => setCurrentIndex(Math.min(teamLocations.length - 1, currentIndex + 1))}
+                disabled={currentIndex === teamLocations.length - 1}
+                style={{
+                  background: 'none', border: 'none',
+                  color: currentIndex === teamLocations.length - 1 ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.5)',
+                  fontSize: '20px', cursor: currentIndex === teamLocations.length - 1 ? 'not-allowed' : 'pointer', padding: '4px 8px',
+                }}
+              >
+                ›
+              </button>
             </div>
-          )}
-        </div>
+
+            {/* Content */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* Distance & status */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{
+                    fontSize: '12px', fontWeight: '600', padding: '4px 10px', borderRadius: '6px',
+                    background: isCurrentFound ? 'rgba(100,255,150,0.1)' : status === 'arrived' ? 'rgba(100,255,150,0.1)' : status === 'approaching' ? 'rgba(255,200,50,0.1)' : 'rgba(255,255,255,0.04)',
+                    color: isCurrentFound ? '#6fea8d' : status === 'arrived' ? '#6fea8d' : status === 'approaching' ? '#ffc832' : 'rgba(255,255,255,0.35)',
+                    border: `1px solid ${isCurrentFound ? 'rgba(100,255,150,0.2)' : status === 'arrived' ? 'rgba(100,255,150,0.2)' : status === 'approaching' ? 'rgba(255,200,50,0.2)' : 'rgba(255,255,255,0.06)'}`,
+                  }}>
+                    {isCurrentFound ? '해금됨 ✓' : status === 'arrived' ? '도착!' : status === 'approaching' ? '접근 중' : '탐색 중'}
+                  </span>
+                </div>
+
+                {!isCurrentFound && gpsPosition && currentLocation && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{
+                      fontSize: '20px', fontWeight: '700', fontFamily: 'monospace',
+                      color: status === 'arrived' ? '#6fea8d' : status === 'approaching' ? '#ffc832' : 'rgba(255,255,255,0.4)',
+                    }}>
+                      {formatDistance(distanceToCurrent)}
+                    </span>
+                    <span style={{
+                      fontSize: '18px',
+                      color: status === 'arrived' ? '#6fea8d' : status === 'approaching' ? '#ffc832' : 'rgba(255,255,255,0.3)',
+                    }}>
+                      {getBearingArrow(gpsPosition.lat, gpsPosition.lng, currentLocation.lat, currentLocation.lng)}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Approaching warning */}
+              {status === 'approaching' && !isCurrentFound && (
+                <div style={{ fontSize: '12px', color: '#ffc832', fontWeight: '600' }}>
+                  ⚡ 가까워지고 있습니다...
+                </div>
+              )}
+
+              {/* Hint */}
+              <HintCard hint={currentLocation.hint} />
+
+              {/* Check-in button */}
+              {!isCurrentFound && (
+                <button
+                  onClick={handleCheckIn}
+                  disabled={status !== 'arrived' || isCheckingLocation}
+                  style={{
+                    width: '100%', padding: '16px',
+                    background: status === 'arrived' ? 'rgba(100,255,150,0.15)' : 'rgba(255,255,255,0.03)',
+                    color: status === 'arrived' ? '#6fea8d' : 'rgba(255,255,255,0.2)',
+                    border: `1px solid ${status === 'arrived' ? 'rgba(100,255,150,0.25)' : 'rgba(255,255,255,0.05)'}`,
+                    borderRadius: '12px', fontSize: '15px', fontWeight: '700',
+                    cursor: status === 'arrived' ? 'pointer' : 'not-allowed',
+                    fontFamily: "'Noto Serif KR', serif",
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {isCheckingLocation ? '확인 중...' : status === 'arrived' ? '이 장소 해금하기' : '장소에 도착하면 해금'}
+                </button>
+              )}
+
+              {isCurrentFound && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  style={{
+                    padding: '16px', borderRadius: '12px',
+                    background: 'rgba(100,255,150,0.06)',
+                    border: '1px solid rgba(100,255,150,0.15)',
+                    textAlign: 'center',
+                  }}
+                >
+                  <span style={{ fontSize: '14px', color: '#6fea8d', fontWeight: '600' }}>해금됨 ✓</span>
+                </motion.div>
+              )}
+            </div>
+          </>
+        ) : null}
       </div>
 
       {/* Game over */}
       <AnimatePresence>
         {timerExpired && (
-          <motion.div className="fixed inset-0 bg-black/80 backdrop-blur-lg flex items-center justify-center z-50 px-6"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <motion.div className="glass glow-gold rounded-3xl p-10 text-center max-w-sm w-full"
-              initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 25 }}>
-              <div className="text-5xl mb-4">🎵</div>
-              <h2 className="text-3xl font-extrabold text-gradient-gold mb-3">게임 종료</h2>
-              <p className="text-gray-400 text-sm mb-3">{foundLocations.size}/{teamLocations.length}개 장소를 찾았습니다</p>
-              <button onClick={() => { localStorage.removeItem('foundLocations'); localStorage.removeItem('currentLocationIndex'); navigate('/') }}
-                className="w-full py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 rounded-xl font-bold text-sm glow-gold hover:shadow-xl transition-all">
+          <motion.div
+            style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
+              backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', zIndex: 200, padding: '24px',
+            }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          >
+            <motion.div
+              style={{
+                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '20px', padding: '40px', textAlign: 'center', maxWidth: '320px', width: '100%',
+              }}
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+            >
+              <div style={{ fontSize: '40px', marginBottom: '16px' }}>🎵</div>
+              <h2 style={{ fontSize: '22px', fontWeight: '700', color: 'rgba(255,255,255,0.9)', marginBottom: '8px' }}>게임 종료</h2>
+              <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.4)', marginBottom: '24px' }}>
+                {foundLocations.size}/{teamLocations.length}개 단서를 수집했습니다
+              </p>
+              <button
+                onClick={() => { localStorage.removeItem('foundLocations'); localStorage.removeItem('currentLocationIndex'); navigate('/') }}
+                style={{
+                  width: '100%', padding: '14px', background: 'rgba(255,255,255,0.9)',
+                  color: '#0a0a0f', border: 'none', borderRadius: '12px',
+                  fontSize: '15px', fontWeight: '700', cursor: 'pointer',
+                  fontFamily: "'Noto Serif KR', serif",
+                }}
+              >
                 돌아가기
               </button>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   )
 }

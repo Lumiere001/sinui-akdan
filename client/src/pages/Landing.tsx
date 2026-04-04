@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Music, Lock, AlertCircle, ChevronDown, ChevronUp, MapPin, Clock, Users } from 'lucide-react'
 import { getTeamByIdAndPassword } from '../data/gameData'
 
 export function Landing() {
@@ -28,69 +27,80 @@ export function Landing() {
     navigate('/game')
   }
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.15 } },
-  }
-  const itemVariants = {
-    hidden: { opacity: 0, y: 16 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
-  }
-
   return (
-    <motion.div
-      className="noise flex flex-col items-center min-h-screen w-full px-5 py-10 relative overflow-hidden"
-      style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(212,168,83,0.08) 0%, #0a0f1e 60%)' }}
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
-      {/* Ambient glow */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute w-[500px] h-[500px] rounded-full opacity-[0.04]" style={{ background: 'radial-gradient(circle, #d4a853 0%, transparent 70%)', left: '-10%', top: '-10%' }} />
-        <div className="absolute w-[400px] h-[400px] rounded-full opacity-[0.03]" style={{ background: 'radial-gradient(circle, #d4a853 0%, transparent 70%)', right: '-5%', bottom: '10%' }} />
-        {['♪', '♫', '♩', '♬'].map((note, idx) => (
-          <motion.div
-            key={idx}
-            className="absolute text-amber-400/[0.07] select-none"
-            style={{ fontSize: `${28 + idx * 10}px`, left: `${15 + idx * 20}%`, top: `${10 + idx * 18}%` }}
-            animate={{ y: [0, -30 - idx * 5, 0], opacity: [0.07, 0.12, 0.07], rotate: [0, idx % 2 === 0 ? 15 : -15, 0] }}
-            transition={{ duration: 5 + idx * 1.5, repeat: Infinity, ease: 'easeInOut' }}
-          >
-            {note}
-          </motion.div>
-        ))}
-      </div>
+    <div style={{
+      minHeight: '100vh',
+      background: '#0a0a0f',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '32px 24px',
+    }}>
+      <motion.div
+        style={{ width: '100%', maxWidth: '340px' }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        {/* Icon */}
+        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+          <div style={{
+            width: '64px', height: '64px', borderRadius: '50%',
+            background: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '28px', marginBottom: '20px',
+          }}>
+            🎼
+          </div>
 
-      <motion.div className="z-10 text-center w-full max-w-sm" variants={containerVariants}>
-        {/* Logo */}
-        <motion.div variants={itemVariants} className="mb-6">
-          <motion.div
-            className="inline-flex items-center justify-center w-20 h-20 rounded-2xl glass-gold glow-gold mb-5"
-            animate={{ rotate: [0, 3, -3, 0] }}
-            transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-          >
-            <Music className="w-10 h-10 text-amber-400" />
-          </motion.div>
-          <h1 className="text-4xl font-extrabold tracking-tight mb-2">
-            <span className="text-gradient-gold">신의 악단</span>
+          <h1 style={{
+            fontSize: '24px', fontWeight: '700',
+            color: 'rgba(255,255,255,0.9)',
+            letterSpacing: '-0.02em', marginBottom: '8px',
+          }}>
+            신의 악단
           </h1>
-          <p className="text-amber-400/60 text-xs font-semibold tracking-[0.3em] uppercase">God's Orchestra</p>
-        </motion.div>
+          <p style={{
+            fontSize: '12px', color: 'rgba(255,255,255,0.3)',
+            letterSpacing: '0.15em', textTransform: 'uppercase',
+            fontFamily: 'monospace',
+          }}>
+            God's Orchestra
+          </p>
+        </div>
 
-        <motion.p variants={itemVariants} className="text-gray-400 text-sm leading-relaxed mb-6 px-2">
+        {/* Description */}
+        <p style={{
+          textAlign: 'center', fontSize: '14px',
+          color: 'rgba(255,255,255,0.4)', lineHeight: 1.7,
+          marginBottom: '32px',
+        }}>
           양림동의 숨겨진 장소들을 찾아<br />하나님의 악보를 완성하세요
-        </motion.p>
+        </p>
 
-        {/* Game Rules */}
-        <motion.div variants={itemVariants} className="mb-6">
+        {/* Rules toggle */}
+        <div style={{ marginBottom: '28px' }}>
           <button
             onClick={() => setShowRules(!showRules)}
-            className="w-full flex items-center justify-between px-5 py-3.5 rounded-xl glass hover:bg-white/[0.04] transition-all"
+            style={{
+              width: '100%', padding: '14px 18px',
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.06)',
+              borderRadius: '12px', cursor: 'pointer',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              color: 'rgba(255,255,255,0.6)', fontSize: '14px', fontWeight: '600',
+              fontFamily: "'Noto Serif KR', serif",
+              transition: 'all 0.2s',
+            }}
           >
-            <span className="text-sm font-semibold text-gray-300">게임 규칙 안내</span>
-            {showRules ? <ChevronUp className="w-4 h-4 text-amber-400" /> : <ChevronDown className="w-4 h-4 text-amber-400" />}
+            <span>게임 규칙 안내</span>
+            <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>
+              {showRules ? '▲' : '▼'}
+            </span>
           </button>
+
           <AnimatePresence>
             {showRules && (
               <motion.div
@@ -98,107 +108,145 @@ export function Landing() {
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.25 }}
-                className="overflow-hidden"
+                style={{ overflow: 'hidden' }}
               >
-                <div className="mt-2 p-5 rounded-xl glass-gold text-left space-y-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-7 h-7 rounded-lg bg-amber-400/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <MapPin className="w-4 h-4 text-amber-400" />
+                <div style={{
+                  marginTop: '8px', padding: '18px',
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.05)',
+                  borderRadius: '12px',
+                }}>
+                  {[
+                    { icon: '📍', title: '장소 찾기', desc: '팀에게 배정된 5개의 장소를 순서대로 찾아가세요. 각 장소에는 힌트가 제공됩니다.' },
+                    { icon: '⏱', title: '제한 시간', desc: '30분 안에 최대한 많은 장소를 찾으면 됩니다. 지도와 힌트를 잘 활용하세요!' },
+                    { icon: '👥', title: '팀 협동', desc: '팀원들과 함께 움직이세요. 장소에 도착하면 체크인 버튼으로 확인합니다.' },
+                  ].map((rule, i) => (
+                    <div key={i} style={{
+                      display: 'flex', gap: '12px', alignItems: 'flex-start',
+                      marginBottom: i < 2 ? '16px' : 0,
+                    }}>
+                      <span style={{ fontSize: '18px', marginTop: '2px' }}>{rule.icon}</span>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: '600', color: 'rgba(255,255,255,0.7)', marginBottom: '4px' }}>
+                          {rule.title}
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)', lineHeight: 1.6 }}>
+                          {rule.desc}
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-amber-100 text-sm font-semibold mb-1">장소 찾기</p>
-                      <p className="text-amber-200/60 text-xs leading-relaxed">팀에게 배정된 5개의 장소를 순서대로 찾아가세요. 각 장소에는 힌트가 제공됩니다.</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-7 h-7 rounded-lg bg-amber-400/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <Clock className="w-4 h-4 text-amber-400" />
-                    </div>
-                    <div>
-                      <p className="text-amber-100 text-sm font-semibold mb-1">제한 시간</p>
-                      <p className="text-amber-200/60 text-xs leading-relaxed">30분 안에 최대한 많은 장소를 찾으면 됩니다. 지도와 힌트를 잘 활용하세요!</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-7 h-7 rounded-lg bg-amber-400/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <Users className="w-4 h-4 text-amber-400" />
-                    </div>
-                    <div>
-                      <p className="text-amber-100 text-sm font-semibold mb-1">팀 협동</p>
-                      <p className="text-amber-200/60 text-xs leading-relaxed">팀원들과 함께 움직이세요. 장소에 도착하면 체크인 버튼으로 확인합니다.</p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
-        </motion.div>
+        </div>
 
-        {/* Login Form */}
-        <motion.div variants={itemVariants} className="space-y-3">
+        {/* Login form */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
           <div>
-            <label className="block text-xs text-gray-500 mb-2 font-medium tracking-wide text-left">팀 번호</label>
+            <label style={{
+              display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.35)',
+              textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: '600',
+              marginBottom: '8px',
+            }}>
+              팀 번호
+            </label>
             <input
-              type="number"
-              min="1"
-              max="10"
-              inputMode="numeric"
+              type="number" min="1" max="10" inputMode="numeric"
               value={teamInput}
               onChange={(e) => { setTeamInput(e.target.value); setError('') }}
-              placeholder="팀 번호 입력 (1-10)"
-              className="w-full px-4 py-3.5 rounded-xl glass text-white placeholder-gray-500 text-sm focus:border-amber-400/30 focus:outline-none focus:ring-1 focus:ring-amber-400/20 transition-all"
+              placeholder="1 - 10"
+              style={{
+                width: '100%', padding: '14px 16px',
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: '12px', color: 'rgba(255,255,255,0.9)',
+                fontSize: '15px', fontFamily: "'Noto Serif KR', serif",
+                outline: 'none', transition: 'border-color 0.2s',
+              }}
+              onFocus={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.2)'}
+              onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.08)'}
             />
           </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-2 font-medium tracking-wide text-left">비밀번호</label>
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-              <input
-                type="password"
-                inputMode="numeric"
-                maxLength={4}
-                value={passwordInput}
-                onChange={(e) => { setPasswordInput(e.target.value); setError('') }}
-                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                placeholder="4자리 비밀번호"
-                className="w-full pl-11 pr-4 py-3.5 rounded-xl glass text-white placeholder-gray-500 text-sm focus:border-amber-400/30 focus:outline-none focus:ring-1 focus:ring-amber-400/20 transition-all"
-              />
-            </div>
-          </div>
-          <AnimatePresence>
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/[0.08] border border-red-400/15"
-              >
-                <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
-                <span className="text-red-300 text-xs font-medium">{error}</span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
 
-        <motion.button
-          variants={itemVariants}
+          <div>
+            <label style={{
+              display: 'block', fontSize: '11px', color: 'rgba(255,255,255,0.35)',
+              textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: '600',
+              marginBottom: '8px',
+            }}>
+              비밀번호
+            </label>
+            <input
+              type="password" inputMode="numeric" maxLength={4}
+              value={passwordInput}
+              onChange={(e) => { setPasswordInput(e.target.value); setError('') }}
+              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+              placeholder="4자리 숫자"
+              style={{
+                width: '100%', padding: '14px 16px',
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: '12px', color: 'rgba(255,255,255,0.9)',
+                fontSize: '15px', fontFamily: "'Noto Serif KR', serif",
+                outline: 'none', transition: 'border-color 0.2s',
+              }}
+              onFocus={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.2)'}
+              onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.08)'}
+            />
+          </div>
+        </div>
+
+        {/* Error */}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              style={{
+                padding: '12px 16px', borderRadius: '10px',
+                background: 'rgba(255, 100, 100, 0.08)',
+                border: '1px solid rgba(255, 100, 100, 0.15)',
+                marginBottom: '16px',
+              }}
+            >
+              <span style={{ fontSize: '13px', color: '#ff6b6b' }}>{error}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Login button */}
+        <button
           onClick={handleLogin}
           disabled={!teamInput || !passwordInput}
-          className={`w-full mt-5 py-4 rounded-xl font-bold text-base transition-all duration-300 ${
-            teamInput && passwordInput
-              ? 'bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 text-slate-900 glow-gold hover:shadow-amber-400/30 hover:shadow-xl cursor-pointer'
-              : 'glass text-gray-600 cursor-not-allowed'
-          }`}
-          whileHover={teamInput && passwordInput ? { scale: 1.02 } : {}}
-          whileTap={teamInput && passwordInput ? { scale: 0.98 } : {}}
+          style={{
+            width: '100%',
+            padding: '16px',
+            background: teamInput && passwordInput ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.06)',
+            color: teamInput && passwordInput ? '#0a0a0f' : 'rgba(255,255,255,0.25)',
+            border: 'none',
+            borderRadius: '12px',
+            fontSize: '16px',
+            fontWeight: '700',
+            cursor: teamInput && passwordInput ? 'pointer' : 'not-allowed',
+            fontFamily: "'Noto Serif KR', serif",
+            letterSpacing: '0.02em',
+            transition: 'all 0.2s ease',
+          }}
         >
-          {teamInput && passwordInput ? '입장하기' : '팀 번호와 비밀번호를 입력하세요'}
-        </motion.button>
+          {teamInput && passwordInput ? '조사 시작' : '팀 번호와 비밀번호를 입력하세요'}
+        </button>
 
-        <motion.p variants={itemVariants} className="mt-8 text-[11px] text-gray-600">
+        {/* Footer */}
+        <p style={{
+          textAlign: 'center', fontSize: '11px',
+          color: 'rgba(255,255,255,0.2)', marginTop: '24px',
+        }}>
           광주 CCC · 양림동 미션
-        </motion.p>
+        </p>
       </motion.div>
-    </motion.div>
+    </div>
   )
 }

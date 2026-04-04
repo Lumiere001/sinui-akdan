@@ -11,6 +11,21 @@ import type { PlayerPosition } from './shared/types';
 
 export const adminRouter = Router();
 
+// Admin authentication middleware
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin2024';
+
+function adminAuth(req: Request, res: Response, next: () => void) {
+  const password = req.headers['x-admin-password'] as string;
+  if (password !== ADMIN_PASSWORD) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+  next();
+}
+
+// Apply auth to all admin routes
+adminRouter.use(adminAuth);
+
 /**
  * GET /api/admin/state
  * Returns the current game state including all teams, players, and progress

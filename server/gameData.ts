@@ -207,3 +207,10 @@ export function getLocation(locationId: string): Location | undefined {
 export function getTeamConfig(round: number, teamId: number): TeamConfig | undefined {
   return gameData.rounds[round.toString()]?.teams[teamId];
 }
+
+/**
+ * Helper function to get all locations
+ */
+export function getAllLocations(): Location[] {
+  return gameData.locations;
+}

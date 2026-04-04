@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSocket } from '../hooks/useSocket'
 import type { GameState } from '../../../shared/types'
 
+// Password is sent to server for validation (not checked client-side only)
 const ADMIN_PASSWORD = 'admin2024'
 
 export function Admin() {
@@ -30,13 +31,18 @@ export function Admin() {
       setGameState(state)
     })
 
-    // admin 룸에 참가
-    socket.emit('admin:join')
+    // admin 룸에 참가 (비밀번호 전송) - 최초 + 재연결 시
+    const joinAdmin = () => {
+      socket.emit('admin:join', password)
+    }
+    joinAdmin()
+    socket.on('connect', joinAdmin)
 
     return () => {
       socket.off('game:state')
+      socket.off('connect', joinAdmin)
     }
-  }, [socket, isLoggedIn])
+  }, [socket, isLoggedIn, password])
 
   // 타이머 틱 (1초마다 리렌더)
   useEffect(() => {

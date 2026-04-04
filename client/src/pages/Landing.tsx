@@ -22,6 +22,7 @@ export function Landing() {
     }
     setError('')
     localStorage.setItem('teamId', teamNum.toString())
+    localStorage.setItem('teamPassword', passwordInput)
     localStorage.setItem('playerId', `player_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`)
     navigate('/game')
   }

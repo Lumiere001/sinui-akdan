@@ -5,7 +5,7 @@ import cors from 'cors';
 import { adminRouter } from './adminRoutes.js';
 import { gameStateManager } from './gameState.js';
 import { checkProximity, checkTeamPresence, isValidLocation } from './gpsCheck.js';
-import { getTeamConfig, getLocation } from './gameData.js';
+import { getTeamConfig, getLocation, getAllLocations } from './gameData.js';
 import type {
   ClientToServerEvents,
   ServerToClientEvents,
@@ -16,6 +16,13 @@ import type {
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 const ALLOWED_ORIGINS = [CLIENT_URL, 'https://sinui-akdan.vercel.app', 'http://localhost:5173'];
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin2024';
+
+// Team passwords (server-side validation)
+const TEAM_PASSWORDS: Record<number, string> = {
+  1: '1111', 2: '2222', 3: '3333', 4: '4444', 5: '5555',
+  6: '6666', 7: '7777', 8: '8888', 9: '9999', 10: '0000',
+};
 // ========== Express App Setup ==========
 const app = express();
 const server = createServer(app);
@@ -78,7 +85,11 @@ io.on('connection', (socket) => {
    * Admin joins the admin room
    * Event: admin:join
    */
-  socket.on('admin:join', () => {
+  socket.on('admin:join', (password?: string) => {
+    if (password !== ADMIN_PASSWORD) {
+      socket.emit('error', { message: 'Invalid admin password' });
+      return;
+    }
     socket.join('admin');
     console.log(`[Admin] Admin client joined (${socket.id})`);
     // 즉시 현재 게임 상태 전송
@@ -86,7 +97,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('player:join', (data) => {
-    const { teamId, playerId } = data;
+    const { teamId, playerId, password } = data;
 
     try {
       if (!teamId || !playerId) {
@@ -97,6 +108,12 @@ io.on('connection', (socket) => {
       // Validate team ID (1-10)
       if (teamId < 1 || teamId > 10) {
         socket.emit('error', { message: 'Invalid team ID' });
+        return;
+      }
+
+      // Validate team password
+      if (password !== TEAM_PASSWORDS[teamId]) {
+        socket.emit('error', { message: 'Invalid team password' });
         return;
       }
 
@@ -143,6 +160,26 @@ io.on('connection', (socket) => {
       // Broadcast updated positions to team members
       const teamRoom = `team:${teamId}`;
       io.to(teamRoom).emit('team:positions', gameStateManager.getTeamMembers(teamId));
+
+      // Calculate and broadcast nearby member count for each visible location
+      const state = gameStateManager.getState();
+      if (state.isActive) {
+        const teamConfig = getTeamConfig(state.currentRound, teamId);
+        if (teamConfig) {
+          // Check presence at player's nearest location
+          const teamMembers = gameStateManager.getTeamMembers(teamId);
+          for (const loc of getAllLocations()) {
+            const presenceResult = checkTeamPresence(teamId, loc.id, gameStateManager);
+            if (presenceResult.count > 0) {
+              io.to(teamRoom).emit('team:memberCount', {
+                locationId: loc.id,
+                count: presenceResult.count,
+                needed: presenceResult.needed,
+              });
+            }
+          }
+        }
+      }
 
       // Broadcast to admin monitoring
       const allTeamsData: Record<number, PlayerPosition[]> = {};
@@ -253,6 +290,10 @@ io.on('connection', (socket) => {
       const isCorrect = locationId === teamConfig.correctLocation;
 
       if (isCorrect) {
+        // Double-check unlock status to prevent race condition
+        if (gameStateManager.hasTeamUnlockedLocation(teamId)) {
+          return;
+        }
         // Correct location found!
         gameStateManager.unlockLocation(teamId, locationId, teamConfig.correctPhoto);
 

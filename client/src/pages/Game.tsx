@@ -42,13 +42,16 @@ export function Game() {
     }
     return id
   })
+  const [teamPassword] = useState<string>(() => {
+    return localStorage.getItem('teamPassword') || ''
+  })
 
   // 게임 상태
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
   const [unlocked, setUnlocked] = useState(false)
   const [scorePhoto, setScorePhoto] = useState<string | null>(null)
   const [wrongGuess, setWrongGuess] = useState<string | null>(null)
-  const [memberCount, setMemberCount] = useState<{ count: number; needed: number } | null>(null)
+  const [memberCount, setMemberCount] = useState<{ count: number; needed: number; locationId?: string } | null>(null)
   const [gameActive, setGameActive] = useState(false)
   const [serverTime, setServerTime] = useState<{ startTime: number; duration: number } | null>(null)
   const [timerDisplay, setTimerDisplay] = useState('00:00')
@@ -69,8 +72,12 @@ export function Game() {
   useEffect(() => {
     if (!socket || !teamId) return
 
-    // 팀 참가
-    socket.emit('player:join', { teamId, playerId })
+    // 팀 참가 (최초 연결 + 재연결 시)
+    const joinTeam = () => {
+      socket.emit('player:join', { teamId, playerId, password: teamPassword })
+    }
+    joinTeam()
+    socket.on('connect', joinTeam)
 
     // 게임 상태 수신
     socket.on('game:state', (state) => {
@@ -104,10 +111,9 @@ export function Game() {
       }
     })
 
-    // 팀원 수
+    // 팀원 수 (위치별로 지속적으로 업데이트됨)
     socket.on('team:memberCount', (data) => {
-      setMemberCount({ count: data.count, needed: data.needed })
-      setTimeout(() => setMemberCount(null), 5000)
+      setMemberCount({ count: data.count, needed: data.needed, locationId: data.locationId })
     })
 
     // 팀원 위치 업데이트
@@ -123,6 +129,7 @@ export function Game() {
     })
 
     return () => {
+      socket.off('connect', joinTeam)
       socket.off('game:state')
       socket.off('team:unlock')
       socket.off('team:wrong')
@@ -130,7 +137,7 @@ export function Game() {
       socket.off('team:positions')
       socket.off('error')
     }
-  }, [socket, teamId, playerId, navigate])
+  }, [socket, teamId, playerId, teamPassword, navigate])
 
   // GPS 위치 서버에 전송
   useEffect(() => {

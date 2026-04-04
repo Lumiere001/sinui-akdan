@@ -13,10 +13,8 @@ import type {
 } from './shared/types';
 
 // ========== Configuration ==========
-const PORT = 3001;
-const DEV_CLIENT_URL = 'http://localhost:5173';
-const PROD_DOMAIN = 'your-production-domain.com'; // Replace with actual domain
-
+const PORT = parseInt(process.env.PORT || '3001', 10);
+const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 // ========== Express App Setup ==========
 const app = express();
 const server = createServer(app);
@@ -25,7 +23,7 @@ const server = createServer(app);
 app.use(express.json());
 app.use(
   cors({
-    origin: [DEV_CLIENT_URL, PROD_DOMAIN],
+    origin: [CLIENT_URL],
     credentials: true,
   }),
 );
@@ -41,7 +39,7 @@ app.use('/api/admin', adminRouter);
 // ========== Socket.io Setup ==========
 const io = new SocketIOServer<ClientToServerEvents, ServerToClientEvents>(server, {
   cors: {
-    origin: [DEV_CLIENT_URL, PROD_DOMAIN],
+    origin: [CLIENT_URL],
     credentials: true,
   },
 });

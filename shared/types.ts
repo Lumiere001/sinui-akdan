@@ -7,6 +7,7 @@ export interface Location {
   lng: number;
   unlockRadius: number;    // 해금 반경 (m)
   approachRadius: number;  // 접근 알림 반경 (m)
+  hint: string;            // 장소 힌트 텍스트
 }
 
 export interface TeamConfig {

@@ -23,100 +23,72 @@ export function MapView({
   const markersRef = useRef<Map<string, any>>(new Map())
   const playerMarkerRef = useRef<any>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
+  const [mapError, setMapError] = useState(false)
 
   // Load Kakao Maps API
   useEffect(() => {
-    if (window.kakao && window.kakao.maps) {
+    if (window.kakao?.maps?.LatLng) {
       setMapLoaded(true)
       return
     }
 
-    // If kakao object exists but maps isn't ready yet (script already loaded)
-    if (window.kakao) {
-      window.kakao.maps.load(() => {
-        setMapLoaded(true)
-      })
+    if (window.kakao?.maps?.load) {
+      window.kakao.maps.load(() => setMapLoaded(true))
+      return
+    }
+
+    const existingScript = document.querySelector('script[src*="dapi.kakao.com"]')
+    if (existingScript) {
+      const checkInterval = setInterval(() => {
+        if (window.kakao?.maps?.load) {
+          clearInterval(checkInterval)
+          window.kakao.maps.load(() => setMapLoaded(true))
+        }
+      }, 200)
+      setTimeout(() => clearInterval(checkInterval), 10000)
       return
     }
 
     const script = document.createElement('script')
-    const apiKey = import.meta.env.VITE_KAKAO_MAP_KEY || 'YOUR_KAKAO_API_KEY'
-    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${apiKey}&libraries=services,clusterer&autoload=false`
-    script.onload = () => {
-      window.kakao.maps.load(() => {
-        setMapLoaded(true)
-      })
-    }
-    script.onerror = () => {
-      console.error('Failed to load Kakao Maps API')
-    }
-    document.head.appendChild(script)
+    const apiKey = import.meta.env.VITE_KAKAO_MAP_KEY || '5cf7281a033392258ca9e620067aa6ad'
+    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${apiKey}&autoload=false`
+    script.async = true
 
-    return () => {
-      if (document.head.contains(script)) {
-        document.head.removeChild(script)
+    script.onload = () => {
+      if (window.kakao?.maps?.load) {
+        window.kakao.maps.load(() => setMapLoaded(true))
+      } else {
+        setMapError(true)
       }
     }
+    script.onerror = () => setMapError(true)
+    document.head.appendChild(script)
   }, [])
 
-  // Initialize map (only once)
+  // Initialize map
   useEffect(() => {
     if (!mapLoaded || !mapRef.current || mapInstanceRef.current) return
-
-    const { kakao } = window
-    const mapContainer = mapRef.current
-    const mapOptions = {
-      center: new kakao.maps.LatLng(
-        playerPosition?.lat || 35.144,
-        playerPosition?.lng || 126.915
-      ),
-      level: 4,
-    }
-
-    const map = new kakao.maps.Map(mapContainer, mapOptions)
-    mapInstanceRef.current = map
-
-    // Add info window styles once
-    if (!document.getElementById('kakao-map-styles')) {
-      const style = document.createElement('style')
-      style.id = 'kakao-map-styles'
-      style.textContent = `
-        .kakao_map_info {
-          background-color: rgba(10, 15, 30, 0.95);
-          border: 1px solid rgba(212, 168, 83, 0.4);
-          border-radius: 12px;
-          padding: 10px 14px;
-          color: #f0ede6;
-          font-family: system-ui, -apple-system, sans-serif;
-          backdrop-filter: blur(12px);
-        }
-        .kakao_map_info p {
-          margin: 0;
-          font-size: 13px;
-          color: #9ca3af;
-        }
-        .kakao_map_info strong {
-          color: #d4a853;
-          font-size: 14px;
-        }
-      `
-      document.head.appendChild(style)
+    try {
+      const { kakao } = window
+      const map = new kakao.maps.Map(mapRef.current, {
+        center: new kakao.maps.LatLng(playerPosition?.lat || 35.143, playerPosition?.lng || 126.915),
+        level: 4,
+      })
+      mapInstanceRef.current = map
+      setTimeout(() => mapInstanceRef.current?.relayout(), 100)
+    } catch (err) {
+      console.error('Error initializing Kakao Map:', err)
+      setMapError(true)
     }
   }, [mapLoaded])
 
-  // Update location markers
+  // Update markers
   useEffect(() => {
     if (!mapInstanceRef.current || !mapLoaded) return
-
     const { kakao } = window
-
-    // Remove old markers
-    markersRef.current.forEach((marker) => {
-      marker.setMap(null)
-    })
+    markersRef.current.forEach((marker) => marker.setMap(null))
     markersRef.current.clear()
 
-    // Add location markers
     locations.forEach((location) => {
       const position = new kakao.maps.LatLng(location.lat, location.lng)
       const marker = new kakao.maps.Marker({
@@ -125,58 +97,50 @@ export function MapView({
         image: createMarkerImage(location.id),
         clickable: true,
       })
-
       marker.setMap(mapInstanceRef.current)
       markersRef.current.set(location.id, marker)
-
-      // Add click event
-      const infoWindow = new kakao.maps.InfoWindow({
-        content: `<div class="kakao_map_info">
-          <p><strong>${location.name}</strong></p>
-          <p>ID: ${location.id}</p>
-        </div>`,
-        disableAutoPan: true,
-      })
-
-      kakao.maps.event.addListener(marker, 'click', () => {
-        infoWindow.open(mapInstanceRef.current, marker)
-        onLocationSelect?.(location.id)
-      })
+      kakao.maps.event.addListener(marker, 'click', () => onLocationSelect?.(location.id))
     })
   }, [locations, mapLoaded, onLocationSelect])
 
-  // Update player position marker
+  // Update player marker
   useEffect(() => {
     if (!mapInstanceRef.current || !playerPosition || !mapLoaded) return
-
     const { kakao } = window
-
-    if (playerMarkerRef.current) {
-      playerMarkerRef.current.setMap(null)
-    }
+    if (playerMarkerRef.current) playerMarkerRef.current.setMap(null)
 
     const playerPos = new kakao.maps.LatLng(playerPosition.lat, playerPosition.lng)
-
-    // Create pulsing player marker using custom overlay
     const playerMarker = new kakao.maps.Marker({
       position: playerPos,
       image: createPlayerMarkerImage(),
       zIndex: 10,
     })
-
     playerMarker.setMap(mapInstanceRef.current)
     playerMarkerRef.current = playerMarker
-
-    // Center map on player
-    mapInstanceRef.current.setCenter(playerPos)
+    mapInstanceRef.current.panTo(playerPos)
   }, [playerPosition, mapLoaded])
 
+  // Relayout on resize
+  useEffect(() => {
+    if (!mapInstanceRef.current || !mapRef.current) return
+    const observer = new ResizeObserver(() => mapInstanceRef.current?.relayout())
+    observer.observe(mapRef.current)
+    return () => observer.disconnect()
+  }, [mapLoaded])
+
+  if (mapError) {
+    return (
+      <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: '#0a0f1e', minHeight: '250px' }}>
+        <div className="text-center text-gray-500">
+          <p className="text-sm font-medium mb-1">지도를 불러올 수 없습니다</p>
+          <p className="text-xs text-gray-600">카카오맵 API 로딩 실패</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div
-      ref={mapRef}
-      className="w-full h-full overflow-hidden"
-      style={{ backgroundColor: '#0a0f1e', minHeight: '250px' }}
-    />
+    <div ref={mapRef} className="w-full h-full overflow-hidden" style={{ backgroundColor: '#1a1f2e', minHeight: '250px' }} />
   )
 }
 
@@ -186,7 +150,6 @@ function createMarkerImage(locationId: string) {
   canvas.height = 50
   const ctx = canvas.getContext('2d')!
 
-  // Draw marker shape
   ctx.fillStyle = '#d4a853'
   ctx.strokeStyle = '#faf7f2'
   ctx.lineWidth = 2
@@ -195,14 +158,12 @@ function createMarkerImage(locationId: string) {
   ctx.fill()
   ctx.stroke()
 
-  // Draw location number
   ctx.fillStyle = '#0f172a'
   ctx.font = 'bold 12px Arial'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillText(locationId, 20, 15)
 
-  // Draw marker point
   ctx.fillStyle = '#d4a853'
   ctx.beginPath()
   ctx.moveTo(20, 28)
@@ -213,11 +174,7 @@ function createMarkerImage(locationId: string) {
   ctx.stroke()
 
   const imageData = canvas.toDataURL()
-  return new window.kakao.maps.MarkerImage(
-    imageData,
-    new window.kakao.maps.Size(40, 50),
-    { offset: new window.kakao.maps.Point(20, 50) }
-  )
+  return new window.kakao.maps.MarkerImage(imageData, new window.kakao.maps.Size(40, 50), { offset: new window.kakao.maps.Point(20, 50) })
 }
 
 function createPlayerMarkerImage() {
@@ -226,28 +183,21 @@ function createPlayerMarkerImage() {
   canvas.height = 30
   const ctx = canvas.getContext('2d')!
 
-  // Draw outer pulse circle
   ctx.fillStyle = 'rgba(59, 130, 246, 0.2)'
   ctx.beginPath()
   ctx.arc(15, 15, 14, 0, Math.PI * 2)
   ctx.fill()
 
-  // Draw middle circle
   ctx.fillStyle = 'rgba(59, 130, 246, 0.5)'
   ctx.beginPath()
   ctx.arc(15, 15, 10, 0, Math.PI * 2)
   ctx.fill()
 
-  // Draw inner circle (player position)
   ctx.fillStyle = '#3b82f6'
   ctx.beginPath()
   ctx.arc(15, 15, 6, 0, Math.PI * 2)
   ctx.fill()
 
   const imageData = canvas.toDataURL()
-  return new window.kakao.maps.MarkerImage(
-    imageData,
-    new window.kakao.maps.Size(30, 30),
-    { offset: new window.kakao.maps.Point(15, 15) }
-  )
+  return new window.kakao.maps.MarkerImage(imageData, new window.kakao.maps.Size(30, 30), { offset: new window.kakao.maps.Point(15, 15) })
 }

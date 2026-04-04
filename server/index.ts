@@ -5,7 +5,7 @@ import cors from 'cors';
 import { adminRouter } from './adminRoutes.js';
 import { gameStateManager } from './gameState.js';
 import { checkProximity, checkTeamPresence, isValidLocation } from './gpsCheck.js';
-import { getTeamConfig } from './gameData.js';
+import { getTeamConfig, getLocation } from './gameData.js';
 import type {
   ClientToServerEvents,
   ServerToClientEvents,
@@ -234,14 +234,12 @@ io.on('connection', (socket) => {
       }
 
       // Check proximity to location
-      const proximity = checkProximity(player, {
-        id: locationId,
-        name: '',
-        lat: 0,
-        lng: 0,
-        unlockRadius: 40,
-        approachRadius: 100,
-      });
+      const location = getLocation(locationId);
+      if (!location) {
+        socket.emit('error', { message: 'Location not found' });
+        return;
+      }
+      const proximity = checkProximity(player, location);
 
       // Proximity check must be 'inside' to proceed
       if (proximity !== 'inside') {

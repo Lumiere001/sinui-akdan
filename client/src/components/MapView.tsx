@@ -144,37 +144,40 @@ export function MapView({
   )
 }
 
-function createMarkerImage(locationId: string) {
+function createMarkerImage(_locationId: string) {
   const canvas = document.createElement('canvas')
-  canvas.width = 40
-  canvas.height = 50
+  canvas.width = 32
+  canvas.height = 42
   const ctx = canvas.getContext('2d')!
 
+  // 핀 모양 — 숫자 없이 깔끔한 원 + 꼬리
   ctx.fillStyle = '#d4a853'
   ctx.strokeStyle = '#faf7f2'
   ctx.lineWidth = 2
   ctx.beginPath()
-  ctx.arc(20, 15, 13, 0, Math.PI * 2)
+  ctx.arc(16, 13, 11, 0, Math.PI * 2)
   ctx.fill()
   ctx.stroke()
 
+  // 음표 아이콘 (♪)
   ctx.fillStyle = '#0f172a'
-  ctx.font = 'bold 12px Arial'
+  ctx.font = 'bold 14px serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.fillText(locationId, 20, 15)
+  ctx.fillText('♪', 16, 13)
 
+  // 핀 꼬리
   ctx.fillStyle = '#d4a853'
   ctx.beginPath()
-  ctx.moveTo(20, 28)
-  ctx.lineTo(26, 50)
-  ctx.lineTo(14, 50)
+  ctx.moveTo(16, 24)
+  ctx.lineTo(21, 42)
+  ctx.lineTo(11, 42)
   ctx.closePath()
   ctx.fill()
   ctx.stroke()
 
   const imageData = canvas.toDataURL()
-  return new window.kakao.maps.MarkerImage(imageData, new window.kakao.maps.Size(40, 50), { offset: new window.kakao.maps.Point(20, 50) })
+  return new window.kakao.maps.MarkerImage(imageData, new window.kakao.maps.Size(32, 42), { offset: new window.kakao.maps.Point(16, 42) })
 }
 
 function createPlayerMarkerImage() {

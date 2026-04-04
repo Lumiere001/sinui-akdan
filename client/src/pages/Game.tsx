@@ -303,11 +303,11 @@ export function Game() {
                       background: info.status === 'inside' ? 'rgba(111,234,141,0.15)' :
                                   info.status === 'approaching' ? 'rgba(255,200,50,0.15)' : 'rgba(255,255,255,0.06)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 12, fontFamily: 'monospace', fontWeight: 600,
+                      fontSize: 14,
                       color: info.status === 'inside' ? '#6fea8d' :
                              info.status === 'approaching' ? '#ffc832' : '#888',
                     }}>
-                      {loc.id}
+                      📍
                     </span>
                     <div>
                       <div style={{ fontSize: 14, fontWeight: 600 }}>{loc.name}</div>

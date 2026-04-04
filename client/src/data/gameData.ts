@@ -2,14 +2,14 @@ import type { Location, TeamConfig } from '../../../shared/types'
 
 // ========== 8개 장소 (서버와 동일) ==========
 export const LOCATIONS: Location[] = [
-  { id: '1', name: '오웬기념각',       lat: 35.14350, lng: 126.91550, unlockRadius: 40, approachRadius: 100 },
-  { id: '2', name: '선교사 묘역',      lat: 35.14450, lng: 126.91480, unlockRadius: 40, approachRadius: 100 },
-  { id: '3', name: '우일선 선교사 사택', lat: 35.14400, lng: 126.91400, unlockRadius: 40, approachRadius: 100 },
-  { id: '4', name: '펭귄마을 입구',     lat: 35.14200, lng: 126.91550, unlockRadius: 40, approachRadius: 100 },
-  { id: '5', name: '이장우 가옥',       lat: 35.14320, lng: 126.91450, unlockRadius: 40, approachRadius: 100 },
-  { id: '6', name: '양림교회',          lat: 35.14370, lng: 126.91520, unlockRadius: 40, approachRadius: 100 },
-  { id: '7', name: '김현승 시비',       lat: 35.14430, lng: 126.91460, unlockRadius: 40, approachRadius: 100 },
-  { id: '8', name: '최승효 가옥',       lat: 35.14300, lng: 126.91420, unlockRadius: 40, approachRadius: 100 },
+  { id: '1', name: '오웬기념각',       lat: 35.138299, lng: 126.915901, unlockRadius: 40, approachRadius: 100 },
+  { id: '2', name: '선교사 묘역',      lat: 35.139354, lng: 126.911123, unlockRadius: 40, approachRadius: 100 },
+  { id: '3', name: '우일선 선교사 사택', lat: 35.138358, lng: 126.911861, unlockRadius: 40, approachRadius: 100 },
+  { id: '4', name: '펭귄마을',          lat: 35.140536, lng: 126.917556, unlockRadius: 40, approachRadius: 100 },
+  { id: '5', name: '이장우 가옥',       lat: 35.140423, lng: 126.914215, unlockRadius: 40, approachRadius: 100 },
+  { id: '6', name: '양림교회',          lat: 35.138181, lng: 126.915584, unlockRadius: 40, approachRadius: 100 },
+  { id: '7', name: '김현승 시비',       lat: 35.136977, lng: 126.917684, unlockRadius: 40, approachRadius: 100 },
+  { id: '8', name: '최승효 가옥',       lat: 35.141354, lng: 126.913985, unlockRadius: 40, approachRadius: 100 },
 ]
 
 // ========== 힌트 (서버 gameData와 동일) ==========

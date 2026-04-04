@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Music } from 'lucide-react'
+import { Music, Sparkles } from 'lucide-react'
 
 export function Landing() {
   const navigate = useNavigate()
@@ -37,124 +37,158 @@ export function Landing() {
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.1,
-        delayChildren: 0.2,
+        staggerChildren: 0.08,
+        delayChildren: 0.15,
       },
     },
   }
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0, y: 16 },
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.6 },
+      transition: { duration: 0.5 },
     },
   }
 
   return (
     <motion.div
-      className="flex flex-col items-center justify-center min-h-screen w-full px-6 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900"
+      className="noise flex flex-col items-center justify-center min-h-screen w-full px-5 relative overflow-hidden"
+      style={{
+        background: 'radial-gradient(ellipse at 50% 0%, rgba(212,168,83,0.08) 0%, #0a0f1e 60%)',
+      }}
       variants={containerVariants}
       initial="hidden"
       animate="visible"
     >
-      {/* Musical notes background */}
+      {/* Ambient glow orbs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <motion.div
-          className="absolute text-gold/10 text-6xl"
-          animate={{ y: [0, -20, 0], opacity: [0.3, 0.5, 0.3] }}
-          transition={{ duration: 4, repeat: Infinity }}
-          style={{ left: '10%', top: '10%' }}
-        >
-          ♪
-        </motion.div>
-        <motion.div
-          className="absolute text-gold/10 text-4xl"
-          animate={{ y: [0, 30, 0], opacity: [0.3, 0.5, 0.3] }}
-          transition={{ duration: 5, repeat: Infinity }}
-          style={{ right: '15%', top: '20%' }}
-        >
-          ♫
-        </motion.div>
-        <motion.div
-          className="absolute text-gold/10 text-5xl"
-          animate={{ y: [0, -25, 0], opacity: [0.3, 0.5, 0.3] }}
-          transition={{ duration: 6, repeat: Infinity }}
-          style={{ left: '20%', bottom: '15%' }}
-        >
-          ♪
-        </motion.div>
+        <div
+          className="absolute w-[500px] h-[500px] rounded-full opacity-[0.04]"
+          style={{
+            background: 'radial-gradient(circle, #d4a853 0%, transparent 70%)',
+            left: '-10%',
+            top: '-10%',
+          }}
+        />
+        <div
+          className="absolute w-[400px] h-[400px] rounded-full opacity-[0.03]"
+          style={{
+            background: 'radial-gradient(circle, #d4a853 0%, transparent 70%)',
+            right: '-5%',
+            bottom: '10%',
+          }}
+        />
+
+        {/* Floating music notes */}
+        {['♪', '♫', '♩', '♬'].map((note, idx) => (
+          <motion.div
+            key={idx}
+            className="absolute text-amber-400/[0.07] select-none"
+            style={{
+              fontSize: `${28 + idx * 10}px`,
+              left: `${15 + idx * 20}%`,
+              top: `${10 + idx * 18}%`,
+            }}
+            animate={{
+              y: [0, -30 - idx * 5, 0],
+              opacity: [0.07, 0.12, 0.07],
+              rotate: [0, idx % 2 === 0 ? 15 : -15, 0],
+            }}
+            transition={{ duration: 5 + idx * 1.5, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            {note}
+          </motion.div>
+        ))}
       </div>
 
       <motion.div
-        className="z-10 text-center space-y-8 max-w-md"
+        className="z-10 text-center w-full max-w-sm"
         variants={containerVariants}
       >
-        {/* Icon */}
-        <motion.div variants={itemVariants} className="flex justify-center">
-          <Music className="w-16 h-16 text-gold" />
+        {/* Logo area */}
+        <motion.div variants={itemVariants} className="mb-8">
+          <motion.div
+            className="inline-flex items-center justify-center w-20 h-20 rounded-2xl glass-gold glow-gold mb-6"
+            animate={{ rotate: [0, 3, -3, 0] }}
+            transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <Music className="w-10 h-10 text-amber-400" />
+          </motion.div>
+
+          <h1 className="text-4xl font-extrabold tracking-tight mb-2">
+            <span className="text-gradient-gold">신의 악단</span>
+          </h1>
+          <p className="text-amber-400/60 text-xs font-semibold tracking-[0.3em] uppercase">
+            God's Orchestra
+          </p>
         </motion.div>
 
-        {/* Title */}
-        <motion.div variants={itemVariants}>
-          <h1 className="text-5xl font-bold text-white mb-2">신의 악단</h1>
-          <p className="text-gold text-sm font-medium tracking-widest">GOD'S ORCHESTRA</p>
-        </motion.div>
-
-        {/* Subtitle */}
+        {/* Description */}
         <motion.p
           variants={itemVariants}
-          className="text-gray-300 text-lg leading-relaxed font-light"
+          className="text-gray-400 text-sm leading-relaxed mb-8 px-2"
         >
-          펭귄마을의 숨겨진 장소들을 찾아 악보를 완성하세요
+          펭귄마을의 숨겨진 장소들을 찾아<br />악보를 완성하세요
         </motion.p>
 
         {/* Team selection */}
-        <motion.div variants={itemVariants} className="space-y-6">
+        <motion.div variants={itemVariants} className="space-y-5">
           <div>
-            <label className="block text-sm text-gray-400 mb-4 tracking-wide">팀 번호를 선택하세요</label>
+            <label className="block text-xs text-gray-500 mb-3 font-medium tracking-wide uppercase">
+              팀 번호 선택
+            </label>
 
             {/* Grid of team buttons */}
-            <div className="grid grid-cols-5 gap-2 mb-6">
+            <div className="grid grid-cols-5 gap-2 mb-4">
               {Array.from({ length: 10 }, (_, i) => i + 1).map((num) => (
                 <motion.button
                   key={num}
                   onClick={() => handleSelectTeam(num)}
-                  className={`py-3 rounded-lg font-bold text-sm transition-all ${
+                  className={`relative py-3.5 rounded-xl font-bold text-sm transition-all duration-200 ${
                     teamId === num
-                      ? 'bg-gold text-slate-900 shadow-lg shadow-gold/50'
-                      : 'bg-slate-700 text-white hover:bg-slate-600'
+                      ? 'bg-gradient-to-b from-amber-400 to-amber-500 text-slate-900 glow-gold'
+                      : 'glass hover:bg-white/[0.04] text-gray-300 hover:text-white'
                   }`}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: 1.06 }}
+                  whileTap={{ scale: 0.94 }}
                 >
                   {num}
+                  {teamId === num && (
+                    <motion.div
+                      className="absolute inset-0 rounded-xl border-2 border-amber-300/50"
+                      layoutId="teamHighlight"
+                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                    />
+                  )}
                 </motion.button>
               ))}
             </div>
 
-            {/* Input field (optional) */}
-            <input
-              type="number"
-              min="1"
-              max="10"
-              value={inputValue}
-              onChange={handleInputChange}
-              placeholder="또는 번호 입력"
-              className="w-full px-4 py-3 rounded-lg bg-slate-700 text-white placeholder-gray-400 border border-slate-600 focus:border-gold focus:outline-none transition-colors"
-            />
+            {/* Input field */}
+            <div className="relative">
+              <input
+                type="number"
+                min="1"
+                max="10"
+                value={inputValue}
+                onChange={handleInputChange}
+                placeholder="또는 번호 직접 입력 (1-10)"
+                className="w-full px-4 py-3 rounded-xl glass text-white placeholder-gray-500 text-sm focus:border-amber-400/30 focus:outline-none focus:ring-1 focus:ring-amber-400/20 transition-all"
+              />
+            </div>
           </div>
 
-          {/* Selected team display */}
+          {/* Selected team badge */}
           {teamId && (
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-center p-4 rounded-lg bg-gold/10 border border-gold/30"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex items-center justify-center gap-2 py-3 rounded-xl glass-gold"
             >
-              <p className="text-gold font-semibold">팀 {teamId}</p>
-              <p className="text-gray-300 text-sm">선택됨</p>
+              <Sparkles className="w-4 h-4 text-amber-400" />
+              <span className="text-amber-300 font-semibold text-sm">팀 {teamId} 선택됨</span>
             </motion.div>
           )}
         </motion.div>
@@ -164,24 +198,25 @@ export function Landing() {
           variants={itemVariants}
           onClick={handleEnter}
           disabled={!teamId}
-          className={`w-full py-4 rounded-lg font-bold text-lg transition-all ${
+          className={`w-full mt-6 py-4 rounded-xl font-bold text-base transition-all duration-300 ${
             teamId
-              ? 'bg-gradient-to-r from-gold to-amber-500 text-slate-900 hover:shadow-lg hover:shadow-gold/50 cursor-pointer'
-              : 'bg-gray-700 text-gray-400 cursor-not-allowed opacity-50'
+              ? 'bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 text-slate-900 glow-gold hover:shadow-amber-400/30 hover:shadow-xl cursor-pointer'
+              : 'glass text-gray-600 cursor-not-allowed'
           }`}
           whileHover={teamId ? { scale: 1.02 } : {}}
           whileTap={teamId ? { scale: 0.98 } : {}}
         >
-          입장하기
+          {teamId ? '입장하기' : '팀을 선택하세요'}
         </motion.button>
-      </motion.div>
 
-      {/* Bottom decorative element */}
-      <motion.div
-        className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-gold/5 to-transparent pointer-events-none"
-        animate={{ opacity: [0.5, 0.8, 0.5] }}
-        transition={{ duration: 3, repeat: Infinity }}
-      />
+        {/* Footer */}
+        <motion.p
+          variants={itemVariants}
+          className="mt-8 text-[11px] text-gray-600"
+        >
+          광주 CCC · 펭귄마을 미션
+        </motion.p>
+      </motion.div>
     </motion.div>
   )
 }

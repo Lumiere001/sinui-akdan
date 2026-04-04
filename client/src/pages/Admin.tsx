@@ -5,7 +5,7 @@ import { useSocket } from '../hooks/useSocket'
 import { useTimer } from '../hooks/useTimer'
 import { MapView } from '../components/MapView'
 import type { GameState, PlayerPosition } from '../../../shared/types'
-import { Lock, LogOut, Play, Square, RotateCcw } from 'lucide-react'
+import { LogOut, Play, Square, RotateCcw, Wifi, WifiOff, Users, Clock, Shield } from 'lucide-react'
 import { LOCATIONS } from '../data/gameData'
 
 export function Admin() {
@@ -19,7 +19,6 @@ export function Admin() {
 
   const timer = useTimer(gameState?.startTime || null, gameState?.duration || 0)
 
-  // Password check
   const handlePasswordSubmit = () => {
     if (password === 'admin1234') {
       setIsAuthenticated(true)
@@ -30,17 +29,11 @@ export function Admin() {
     }
   }
 
-  // Listen for game state
   useEffect(() => {
     if (!socket) return
 
-    const handleGameState = (state: GameState) => {
-      setGameState(state)
-    }
-
-    const handleAllPositions = (data: Record<number, PlayerPosition[]>) => {
-      setAllPositions(data)
-    }
+    const handleGameState = (state: GameState) => setGameState(state)
+    const handleAllPositions = (data: Record<number, PlayerPosition[]>) => setAllPositions(data)
 
     socket.on('game:state', handleGameState)
     socket.on('admin:allPositions', handleAllPositions)
@@ -51,7 +44,6 @@ export function Admin() {
     }
   }, [socket])
 
-  // Handle admin commands
   const handleStartRound = (roundId: number) => {
     if (!socket) return
     socket.emit('admin:startRound', roundId)
@@ -74,234 +66,241 @@ export function Admin() {
     navigate('/')
   }
 
-  // Get team status
   const getTeamStatus = (teamId: number) => {
     const team = gameState?.teams[teamId]
     if (!team) return 'unknown'
-
     if (team.unlockedLocation) return 'found'
     const positions = allPositions[teamId] || []
     if (positions.length === 0) return 'not_found'
     return 'searching'
   }
 
-
+  // ── Login screen ──
   if (!isAuthenticated) {
     return (
       <motion.div
-        className="flex flex-col items-center justify-center min-h-screen w-full px-6 bg-gradient-to-b from-slate-900 to-slate-800"
+        className="noise flex flex-col items-center justify-center min-h-screen w-full px-5"
+        style={{
+          background: 'radial-gradient(ellipse at 50% 0%, rgba(212,168,83,0.06) 0%, #0a0f1e 60%)',
+        }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
       >
         <motion.div
-          className="w-full max-w-sm space-y-6 bg-slate-800/50 border border-slate-700/40 rounded-lg p-8"
-          initial={{ scale: 0.9 }}
-          animate={{ scale: 1 }}
+          className="w-full max-w-xs"
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.1 }}
         >
-          <div className="flex justify-center mb-6">
-            <Lock className="w-12 h-12 text-gold" />
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl glass-gold glow-gold mb-5">
+              <Shield className="w-8 h-8 text-amber-400" />
+            </div>
+            <h1 className="text-2xl font-extrabold text-white mb-1">관리자</h1>
+            <p className="text-xs text-gray-500">비밀번호를 입력하세요</p>
           </div>
 
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-white mb-2">관리자 대시보드</h1>
-            <p className="text-gray-400">비밀번호를 입력하세요</p>
+          <div className="space-y-4">
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
+              placeholder="비밀번호"
+              className="w-full px-4 py-3.5 rounded-xl glass text-white text-sm placeholder-gray-500 focus:border-amber-400/30 focus:outline-none focus:ring-1 focus:ring-amber-400/20 transition-all"
+              autoFocus
+            />
+
+            <button
+              onClick={handlePasswordSubmit}
+              className="w-full py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 rounded-xl font-bold text-sm glow-gold hover:shadow-xl transition-all"
+            >
+              로그인
+            </button>
           </div>
-
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
-            placeholder="비밀번호"
-            className="w-full px-4 py-3 rounded-lg bg-slate-700 text-white placeholder-gray-400 border border-slate-600 focus:border-gold focus:outline-none"
-            autoFocus
-          />
-
-          <button
-            onClick={handlePasswordSubmit}
-            className="w-full py-3 bg-gradient-to-r from-gold to-amber-500 text-slate-900 rounded-lg font-bold hover:shadow-lg hover:shadow-gold/50 transition-all"
-          >
-            로그인
-          </button>
         </motion.div>
       </motion.div>
     )
   }
 
-  // Get all team positions for map display
+  // ── Dashboard ──
   const playerPositions: Array<{ lat: number; lng: number; teamId: number }> = []
   Object.entries(allPositions).forEach(([teamId, positions]) => {
     positions.forEach((pos) => {
-      playerPositions.push({
-        lat: pos.lat,
-        lng: pos.lng,
-        teamId: parseInt(teamId, 10),
-      })
+      playerPositions.push({ lat: pos.lat, lng: pos.lng, teamId: parseInt(teamId, 10) })
     })
   })
 
+  const totalPlayers = Object.values(allPositions).reduce((sum, arr) => sum + arr.length, 0)
+
   return (
     <motion.div
-      className="flex flex-col h-screen w-full bg-gradient-to-b from-slate-900 to-slate-800"
+      className="noise flex flex-col h-screen w-full"
+      style={{ background: '#0a0f1e' }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
       {/* Header */}
-      <div className="bg-slate-900/80 backdrop-blur border-b border-slate-700/40 p-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gold">관리자 대시보드</h1>
-          <p className="text-xs text-gray-400">
-            상태: {isConnected ? '연결됨' : '연결 해제'} | 라운드: {gameState?.currentRound || '-'} |{' '}
-            {gameState?.isActive ? '활성' : '비활성'}
-          </p>
+      <div className="glass border-b border-white/[0.04] px-4 py-3 flex items-center justify-between z-20">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-amber-400/10 flex items-center justify-center">
+            <Shield className="w-4 h-4 text-amber-400" />
+          </div>
+          <div>
+            <h1 className="text-sm font-bold text-white">관리자 대시보드</h1>
+            <div className="flex items-center gap-2 text-[10px] text-gray-500">
+              <span className="flex items-center gap-1">
+                {isConnected ? <Wifi className="w-3 h-3 text-emerald-400" /> : <WifiOff className="w-3 h-3 text-red-400" />}
+                {isConnected ? '연결됨' : '연결 해제'}
+              </span>
+              <span>·</span>
+              <span>R{gameState?.currentRound || '-'}</span>
+              <span>·</span>
+              <span className="flex items-center gap-1">
+                <Users className="w-3 h-3" /> {totalPlayers}
+              </span>
+            </div>
+          </div>
         </div>
 
         <button
           onClick={handleLogout}
-          className="px-4 py-2 rounded-lg bg-red-600/20 border border-red-600/40 text-red-400 hover:bg-red-600/30 flex items-center gap-2 transition-colors"
+          className="p-2 rounded-lg glass text-red-400/70 hover:text-red-400 hover:bg-red-500/10 transition-all"
         >
           <LogOut className="w-4 h-4" />
-          로그아웃
         </button>
       </div>
 
       {/* Main content */}
-      <div className="flex-1 overflow-hidden flex flex-col lg:flex-row gap-4 p-4">
-        {/* Left column: Controls and Teams */}
-        <div className="w-full lg:w-96 space-y-4 overflow-y-auto">
+      <div className="flex-1 overflow-hidden flex flex-col lg:flex-row gap-3 p-3">
+        {/* Left column */}
+        <div className="w-full lg:w-80 space-y-3 overflow-y-auto">
           {/* Round Control */}
-          <motion.div
-            className="bg-slate-800/50 border border-slate-700/40 rounded-lg p-4 space-y-4"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <h2 className="text-lg font-bold text-white">라운드 제어</h2>
+          <div className="glass rounded-2xl p-4 space-y-3">
+            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider">라운드 제어</h2>
 
             <div className="space-y-2">
               <button
                 onClick={() => handleStartRound(1)}
                 disabled={gameState?.isActive}
-                className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
+                className="w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-emerald-500/15 text-emerald-400 border border-emerald-400/20 hover:bg-emerald-500/25"
               >
-                <Play className="w-4 h-4" />
+                <Play className="w-3.5 h-3.5" />
                 라운드 1 시작
               </button>
               <button
                 onClick={() => handleStartRound(2)}
                 disabled={gameState?.isActive}
-                className="w-full py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
+                className="w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-blue-500/15 text-blue-400 border border-blue-400/20 hover:bg-blue-500/25"
               >
-                <Play className="w-4 h-4" />
+                <Play className="w-3.5 h-3.5" />
                 라운드 2 시작
               </button>
-              <button
-                onClick={handleStopRound}
-                disabled={!gameState?.isActive}
-                className="w-full py-2 bg-red-600 hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
-              >
-                <Square className="w-4 h-4" />
-                중지
-              </button>
-              <button
-                onClick={handleResetGame}
-                className="w-full py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
-              >
-                <RotateCcw className="w-4 h-4" />
-                초기화
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={handleStopRound}
+                  disabled={!gameState?.isActive}
+                  className="py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-red-500/15 text-red-400 border border-red-400/20 hover:bg-red-500/25"
+                >
+                  <Square className="w-3.5 h-3.5" />
+                  중지
+                </button>
+                <button
+                  onClick={handleResetGame}
+                  className="py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all bg-amber-500/15 text-amber-400 border border-amber-400/20 hover:bg-amber-500/25"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  초기화
+                </button>
+              </div>
             </div>
-          </motion.div>
+          </div>
 
           {/* Timer Display */}
           {gameState?.isActive && (
             <motion.div
-              className="bg-slate-800/50 border border-gold/40 rounded-lg p-4 text-center"
-              initial={{ opacity: 0, y: 20 }}
+              className="glass-gold glow-gold rounded-2xl p-5 text-center"
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <p className="text-gray-400 text-sm mb-2">남은 시간</p>
-              <p className="text-4xl font-bold text-gold">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <Clock className="w-4 h-4 text-amber-400/60" />
+                <span className="text-[10px] text-amber-400/60 font-semibold uppercase tracking-wider">남은 시간</span>
+              </div>
+              <p className="text-4xl font-extrabold text-gradient-gold tabular-nums">
                 {timer.minutes.toString().padStart(2, '0')}:{timer.seconds.toString().padStart(2, '0')}
               </p>
             </motion.div>
           )}
 
           {/* Team Monitor */}
-          <motion.div
-            className="bg-slate-800/50 border border-slate-700/40 rounded-lg p-4"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <h2 className="text-lg font-bold text-white mb-4">팀 모니터</h2>
+          <div className="glass rounded-2xl p-4">
+            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">팀 모니터</h2>
 
             <div className="grid grid-cols-2 gap-2">
-              {Array.from({ length: 10 }, (_, i) => i + 1).map((teamId) => {
-                const team = gameState?.teams[teamId]
-                const positions = allPositions[teamId] || []
-                const status = getTeamStatus(teamId)
+              {Array.from({ length: 10 }, (_, i) => i + 1).map((tid) => {
+                const team = gameState?.teams[tid]
+                const positions = allPositions[tid] || []
+                const status = getTeamStatus(tid)
 
                 const statusConfig = {
-                  found: { label: '찾음', color: 'bg-emerald-600' },
-                  searching: { label: '탐색중', color: 'bg-blue-600' },
-                  approaching: { label: '접근', color: 'bg-amber-600' },
-                  not_found: { label: '미참가', color: 'bg-gray-600' },
-                  unknown: { label: '?', color: 'bg-gray-600' },
+                  found: { label: '찾음', dotColor: 'bg-emerald-400', borderColor: 'border-emerald-400/20' },
+                  searching: { label: '탐색', dotColor: 'bg-blue-400', borderColor: 'border-blue-400/20' },
+                  approaching: { label: '접근', dotColor: 'bg-amber-400', borderColor: 'border-amber-400/20' },
+                  not_found: { label: '대기', dotColor: 'bg-gray-600', borderColor: 'border-white/[0.04]' },
+                  unknown: { label: '?', dotColor: 'bg-gray-600', borderColor: 'border-white/[0.04]' },
                 }
 
                 const config = statusConfig[status as keyof typeof statusConfig]
 
                 return (
                   <motion.button
-                    key={teamId}
-                    onClick={() => setExpandedTeam(expandedTeam === teamId ? null : teamId)}
-                    className={`p-3 rounded-lg border transition-all ${
-                      team?.unlockedLocation
-                        ? 'bg-emerald-900/40 border-emerald-600/40'
-                        : 'bg-slate-700/40 border-slate-600/40 hover:border-slate-500/60'
-                    }`}
+                    key={tid}
+                    onClick={() => setExpandedTeam(expandedTeam === tid ? null : tid)}
+                    className={`p-3 rounded-xl border transition-all ${config.borderColor} ${
+                      team?.unlockedLocation ? 'bg-emerald-500/[0.06]' : 'bg-white/[0.02] hover:bg-white/[0.04]'
+                    } ${expandedTeam === tid ? 'ring-1 ring-amber-400/30' : ''}`}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    <div className="text-left">
-                      <p className="font-bold text-white">팀 {teamId}</p>
-                      <div className="flex items-center justify-between mt-1 text-xs">
-                        <span className="text-gray-300">{positions.length}명</span>
-                        <span className={`px-2 py-1 rounded-full text-white font-medium ${config.color}`}>
-                          {config.label}
-                        </span>
-                      </div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-white text-xs">팀 {tid}</span>
+                      <div className={`w-2 h-2 rounded-full ${config.dotColor} ${status === 'searching' ? 'pulse-dot' : ''}`} />
+                    </div>
+                    <div className="flex items-center justify-between mt-1.5">
+                      <span className="text-[10px] text-gray-500">{positions.length}명</span>
+                      <span className="text-[10px] text-gray-400 font-medium">{config.label}</span>
                     </div>
                   </motion.button>
                 )
               })}
             </div>
-          </motion.div>
+          </div>
 
           {/* Expanded Team Details */}
           <AnimatePresence>
             {expandedTeam && gameState?.teams[expandedTeam] && (
               <motion.div
-                className="bg-slate-800/50 border border-slate-700/40 rounded-lg p-4"
+                className="glass-gold rounded-2xl p-4"
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
               >
-                <h3 className="font-bold text-gold mb-3">팀 {expandedTeam} 상세</h3>
-                <div className="space-y-2 text-sm text-gray-300">
-                  <p>
-                    멤버 수: <span className="text-white font-semibold">{allPositions[expandedTeam]?.length || 0}</span>
-                  </p>
-                  <p>
-                    상태:{' '}
+                <h3 className="font-bold text-amber-300 text-xs mb-3">팀 {expandedTeam} 상세</h3>
+                <div className="space-y-2 text-xs text-gray-400">
+                  <div className="flex justify-between">
+                    <span>멤버 수</span>
+                    <span className="text-white font-semibold">{allPositions[expandedTeam]?.length || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>상태</span>
                     <span className="text-white font-semibold">{getTeamStatus(expandedTeam)}</span>
-                  </p>
+                  </div>
                   {gameState.teams[expandedTeam]?.unlockedLocation && (
-                    <p>
-                      찾은 장소:{' '}
-                      <span className="text-emerald-400 font-semibold">
-                        {gameState.teams[expandedTeam].unlockedLocation}
-                      </span>
-                    </p>
+                    <div className="flex justify-between">
+                      <span>찾은 장소</span>
+                      <span className="text-emerald-400 font-semibold">{gameState.teams[expandedTeam].unlockedLocation}</span>
+                    </div>
                   )}
                 </div>
               </motion.div>
@@ -311,10 +310,10 @@ export function Admin() {
 
         {/* Right column: Map */}
         <motion.div
-          className="flex-1 rounded-lg overflow-hidden border border-slate-700/40"
+          className="flex-1 rounded-2xl overflow-hidden border border-white/[0.04]"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
+          transition={{ delay: 0.15 }}
         >
           <MapView
             locations={LOCATIONS}

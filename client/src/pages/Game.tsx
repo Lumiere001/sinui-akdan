@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useSocket } from '../hooks/useSocket'
 import { useGPS } from '../hooks/useGPS'
 import { useTimer } from '../hooks/useTimer'
@@ -10,7 +10,7 @@ import { HintCard } from '../components/HintCard'
 import { LocationCard } from '../components/LocationCard'
 import { LOCATIONS } from '../data/gameData'
 import type { GameState, TeamConfig } from '../../../shared/types'
-import { ChevronUp, MapPin, AlertCircle } from 'lucide-react'
+import { ChevronUp, MapPin, AlertCircle, Wifi, WifiOff, Map } from 'lucide-react'
 
 export function Game() {
   const navigate = useNavigate()
@@ -27,11 +27,9 @@ export function Game() {
 
   const timer = useTimer(gameState?.startTime || null, gameState?.duration || 0)
 
-  // Initialize IDs from localStorage
   useEffect(() => {
     const storedTeamId = localStorage.getItem('teamId')
     const storedPlayerId = localStorage.getItem('playerId')
-
     if (storedTeamId && storedPlayerId) {
       setTeamId(parseInt(storedTeamId, 10))
       setPlayerId(storedPlayerId)
@@ -40,21 +38,15 @@ export function Game() {
     }
   }, [navigate])
 
-  // Join game when socket and IDs are ready
   useEffect(() => {
     if (!socket || !teamId || !playerId || !isConnected) return
-
     socket.emit('player:join', { teamId, playerId })
   }, [socket, teamId, playerId, isConnected])
 
-  // Listen for game state updates
   useEffect(() => {
     if (!socket) return
-
     const handleGameState = (state: GameState) => {
       setGameState(state)
-
-      // Update visible locations based on team config
       if (state.currentRound && teamId) {
         const round = state[`round_${state.currentRound}` as keyof GameState] as any
         if (round && round.teams && round.teams[teamId]) {
@@ -65,31 +57,23 @@ export function Game() {
         }
       }
     }
-
     const handleTeamMemberCount = (data: { locationId: string; count: number; needed: number }) => {
-      setMemberCounts((prev) => ({
-        ...prev,
-        [data.locationId]: data.count,
-      }))
+      setMemberCounts((prev) => ({ ...prev, [data.locationId]: data.count }))
     }
-
     const handleTeamUnlock = (data: { teamId: number; locationId: string; photo: string }) => {
       if (data.teamId === teamId) {
         navigate(`/result/correct`, { state: { photoUrl: data.photo } })
       }
     }
-
     const handleTeamWrong = (data: { teamId: number; locationId: string }) => {
       if (data.teamId === teamId) {
         navigate('/result/wrong')
       }
     }
-
     socket.on('game:state', handleGameState)
     socket.on('team:memberCount', handleTeamMemberCount)
     socket.on('team:unlock', handleTeamUnlock)
     socket.on('team:wrong', handleTeamWrong)
-
     return () => {
       socket.off('game:state', handleGameState)
       socket.off('team:memberCount', handleTeamMemberCount)
@@ -98,159 +82,162 @@ export function Game() {
     }
   }, [socket, teamId, navigate])
 
-  // Send position updates
   useEffect(() => {
     if (!socket || !gpsPosition || !teamId || !playerId) return
-
     const interval = setInterval(() => {
       socket.emit('player:position', {
-        playerId,
-        teamId,
-        lat: gpsPosition.lat,
-        lng: gpsPosition.lng,
+        playerId, teamId,
+        lat: gpsPosition.lat, lng: gpsPosition.lng,
         timestamp: Date.now(),
       })
     }, 3000)
-
     return () => clearInterval(interval)
   }, [socket, gpsPosition, teamId, playerId])
 
-  // Handle location check
   const handleCheckLocation = useCallback(
     (locationId: string) => {
       if (!socket || isCheckingLocation) return
-
       setIsCheckingLocation(true)
       socket.emit('player:checkLocation', { locationId })
-
-      setTimeout(() => {
-        setIsCheckingLocation(false)
-      }, 1000)
+      setTimeout(() => setIsCheckingLocation(false), 1000)
     },
     [socket, isCheckingLocation]
   )
 
-  // Check if game is active
   const gameActive = gameState?.isActive
   const timerExpired = timer.isExpired
-
-  if (!teamId) {
-    return null
-  }
+  if (!teamId) return null
 
   return (
     <motion.div
-      className="flex flex-col h-screen w-full bg-gradient-to-b from-slate-900 to-slate-800"
+      className="noise flex flex-col h-screen w-full overflow-hidden"
+      style={{ background: '#0a0f1e' }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
+      transition={{ duration: 0.4 }}
     >
-      {/* Top bar with timer and team info */}
-      <div className="bg-slate-900/80 backdrop-blur border-b border-slate-700/40 p-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <motion.div
-            className="px-3 py-1 rounded-full bg-gold/20 border border-gold/40"
-            animate={{ borderColor: ['rgba(212,168,83,0.4)', 'rgba(212,168,83,0.8)', 'rgba(212,168,83,0.4)'] }}
-            transition={{ duration: 2, repeat: Infinity }}
-          >
-            <span className="text-gold font-semibold text-sm">팀 {teamId}</span>
-          </motion.div>
-        </div>
-
+      {/* Top bar */}
+      <div className="glass border-b border-white/[0.04] px-4 py-3 flex items-center justify-between gap-3 z-20">
+        <motion.div
+          className="flex items-center gap-2 px-3 py-1.5 rounded-xl glass-gold"
+          animate={{ borderColor: ['rgba(212,168,83,0.15)', 'rgba(212,168,83,0.3)', 'rgba(212,168,83,0.15)'] }}
+          transition={{ duration: 3, repeat: Infinity }}
+        >
+          <div className="w-2 h-2 rounded-full bg-amber-400 pulse-dot" />
+          <span className="text-amber-300 font-bold text-xs">팀 {teamId}</span>
+        </motion.div>
         <Timer startTime={gameState?.startTime || null} duration={gameState?.duration || 1800000} />
-
-        <div className="text-right text-xs text-gray-400">
+        <div className="flex items-center gap-1.5">
           {isConnected ? (
-            <span className="text-emerald-400">연결됨</span>
+            <Wifi className="w-4 h-4 text-emerald-400/70" />
           ) : (
-            <span className="text-red-400">연결 해제</span>
+            <WifiOff className="w-4 h-4 text-red-400/70" />
           )}
         </div>
       </div>
 
       {/* Status alerts */}
-      {!gameActive && (
-        <motion.div
-          className="bg-amber-900/30 border-b border-amber-700/40 px-4 py-3 flex items-center gap-2"
-          animate={{ opacity: [0.7, 1, 0.7] }}
-          transition={{ duration: 2, repeat: Infinity }}
-        >
-          <AlertCircle className="w-5 h-5 text-amber-400" />
-          <span className="text-amber-300 text-sm">게임이 시작되기를 기다리는 중입니다</span>
-        </motion.div>
-      )}
-
-      {gpsError && (
-        <motion.div className="bg-red-900/30 border-b border-red-700/40 px-4 py-3">
-          <p className="text-red-300 text-sm">{gpsError}</p>
-        </motion.div>
-      )}
-
-      {!isTracking && !gpsError && (
-        <motion.div className="bg-amber-900/30 border-b border-amber-700/40 px-4 py-3 flex items-center gap-2">
-          <AlertCircle className="w-5 h-5 text-amber-400" />
-          <span className="text-amber-300 text-sm">위치 추적 중...</span>
-        </motion.div>
-      )}
+      <AnimatePresence>
+        {!gameActive && (
+          <motion.div
+            className="flex items-center gap-2 px-4 py-2.5 bg-amber-500/[0.06] border-b border-amber-400/10"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+          >
+            <AlertCircle className="w-4 h-4 text-amber-400/80 shrink-0" />
+            <span className="text-amber-300/80 text-xs font-medium">게임이 시작되기를 기다리는 중입니다</span>
+          </motion.div>
+        )}
+        {gpsError && (
+          <motion.div
+            className="flex items-center gap-2 px-4 py-2.5 bg-red-500/[0.06] border-b border-red-400/10"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+          >
+            <AlertCircle className="w-4 h-4 text-red-400/80 shrink-0" />
+            <span className="text-red-300/80 text-xs">{gpsError}</span>
+          </motion.div>
+        )}
+        {!isTracking && !gpsError && (
+          <motion.div
+            className="flex items-center gap-2 px-4 py-2.5 bg-amber-500/[0.06] border-b border-amber-400/10"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+          >
+            <motion.div
+              className="w-4 h-4 border-2 border-amber-400/40 border-t-amber-400 rounded-full shrink-0"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+            />
+            <span className="text-amber-300/80 text-xs font-medium">위치 추적 중...</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main game area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Map area - 55% */}
-        {showMap && (
-          <motion.div
-            className="relative flex-[55%] overflow-hidden"
-            layout
-          >
-            {gpsPosition ? (
-              <MapView
-                locations={visibleLocations}
-                playerPosition={{ lat: gpsPosition.lat, lng: gpsPosition.lng }}
-                onLocationSelect={handleCheckLocation}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-slate-800">
-                <div className="text-center text-gray-400">
-                  <MapPin className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>위치 정보를 기다리는 중...</p>
-                </div>
-              </div>
-            )}
-
-            {/* Collapse/expand button */}
-            <button
-              onClick={() => setShowMap(!showMap)}
-              className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-slate-900/80 backdrop-blur hover:bg-slate-800 p-2 rounded-full border border-slate-700/40 transition-all"
+        <AnimatePresence>
+          {showMap && (
+            <motion.div
+              className="relative flex-[55%] overflow-hidden"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              layout
             >
-              <ChevronUp className={`w-5 h-5 text-gold transition-transform ${showMap ? 'rotate-180' : ''}`} />
-            </button>
-          </motion.div>
-        )}
+              {gpsPosition ? (
+                <MapView
+                  locations={visibleLocations}
+                  playerPosition={{ lat: gpsPosition.lat, lng: gpsPosition.lng }}
+                  onLocationSelect={handleCheckLocation}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center" style={{ background: '#0a0f1e', minHeight: '200px' }}>
+                  <div className="text-center text-gray-500">
+                    <Map className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                    <p className="text-xs font-medium">위치 정보를 기다리는 중...</p>
+                  </div>
+                </div>
+              )}
+              <button
+                onClick={() => setShowMap(false)}
+                className="absolute bottom-3 left-1/2 -translate-x-1/2 glass hover:bg-white/[0.06] px-4 py-1.5 rounded-full flex items-center gap-1.5 transition-all z-10"
+              >
+                <ChevronUp className="w-4 h-4 text-amber-400" />
+                <span className="text-[11px] text-gray-400 font-medium">지도 접기</span>
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {/* Bottom panel - 45% */}
         <motion.div
-          className="relative flex-[45%] bg-slate-900/50 border-t border-slate-700/40 overflow-hidden flex flex-col"
+          className={`relative bg-[#0a0f1e] border-t border-white/[0.04] overflow-hidden flex flex-col ${showMap ? 'flex-[45%]' : 'flex-1'}`}
           layout
         >
-          {/* Panel header */}
-          <div className="px-4 pt-3 pb-2 border-b border-slate-700/40 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-gold" />
-              찾을 장소들
-            </h2>
-            <button
-              onClick={() => setShowMap(!showMap)}
-              className="p-1 hover:bg-slate-800 rounded transition-colors"
-            >
-              <ChevronUp className={`w-5 h-5 text-gold transition-transform ${!showMap ? 'rotate-180' : ''}`} />
-            </button>
-          </div>
-
-          {/* Scrollable content area */}
-          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-            {teamConfig && (
-              <HintCard hint={teamConfig.hint} />
+          <div className="px-4 py-3 flex items-center justify-between border-b border-white/[0.04]">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-amber-400/10 flex items-center justify-center">
+                <MapPin className="w-4 h-4 text-amber-400" />
+              </div>
+              <h2 className="text-sm font-bold text-white">찾을 장소들</h2>
+              <span className="text-[11px] text-gray-600 font-medium">{visibleLocations.length}곳</span>
+            </div>
+            {!showMap && (
+              <button
+                onClick={() => setShowMap(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass text-[11px] text-gray-400 font-medium hover:text-white transition-colors"
+              >
+                <Map className="w-3.5 h-3.5" />
+                지도 보기
+              </button>
             )}
-
+          </div>
+          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2.5">
+            {teamConfig && <HintCard hint={teamConfig.hint} />}
             {visibleLocations.map((location) => (
               <LocationCard
                 key={location.id}
@@ -263,39 +250,45 @@ export function Game() {
                 onCheck={() => handleCheckLocation(location.id)}
               />
             ))}
-
             {visibleLocations.length === 0 && (
-              <div className="text-center text-gray-400 py-8">
-                <p>표시할 장소가 없습니다</p>
+              <div className="text-center text-gray-600 py-12">
+                <MapPin className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                <p className="text-xs font-medium">표시할 장소가 없습니다</p>
               </div>
             )}
+            <div className="h-4" />
           </div>
         </motion.div>
       </div>
 
       {/* Game over overlay */}
-      {timerExpired && (
-        <motion.div
-          className="absolute inset-0 bg-black/70 backdrop-blur flex items-center justify-center z-50"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-        >
+      <AnimatePresence>
+        {timerExpired && (
           <motion.div
-            className="bg-slate-900 rounded-lg p-8 text-center border border-gold/40"
-            initial={{ scale: 0.8 }}
-            animate={{ scale: 1 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-lg flex items-center justify-center z-50 px-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
           >
-            <h2 className="text-3xl font-bold text-gold mb-4">게임 끝</h2>
-            <p className="text-gray-300 mb-6">시간이 종료되었습니다</p>
-            <button
-              onClick={() => navigate('/')}
-              className="px-6 py-2 bg-gold text-slate-900 rounded-lg font-semibold hover:bg-amber-500 transition-colors"
+            <motion.div
+              className="glass glow-gold rounded-3xl p-10 text-center max-w-sm w-full"
+              initial={{ scale: 0.85, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
             >
-              돌아가기
-            </button>
+              <div className="text-5xl mb-4">🎵</div>
+              <h2 className="text-3xl font-extrabold text-gradient-gold mb-3">게임 종료</h2>
+              <p className="text-gray-400 text-sm mb-8">시간이 종료되었습니다</p>
+              <button
+                onClick={() => navigate('/')}
+                className="w-full py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 rounded-xl font-bold text-sm glow-gold hover:shadow-xl transition-all"
+              >
+                돌아가기
+              </button>
+            </motion.div>
           </motion.div>
-        </motion.div>
-      )}
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 }

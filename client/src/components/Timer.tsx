@@ -10,7 +10,7 @@ interface TimerProps {
 export function Timer({ startTime, duration, onExpire }: TimerProps) {
   const { minutes, seconds, isExpired, progress } = useTimer(startTime, duration)
 
-  const isPulsing = minutes === 0 && seconds < 60
+  const isUrgent = minutes === 0 && seconds < 60
   const isWarning = progress < 1 / 6
 
   if (isExpired && onExpire) {
@@ -19,50 +19,57 @@ export function Timer({ startTime, duration, onExpire }: TimerProps) {
 
   const displayTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 
+  const circumference = 2 * Math.PI * 20
+  const strokeColor = isWarning ? '#ef4444' : '#d4a853'
+  const glowClass = isWarning ? 'glow-red' : 'glow-gold'
+
   return (
     <motion.div
-      className="flex flex-col items-center gap-2"
-      animate={isPulsing ? { scale: [1, 1.05, 1] } : {}}
-      transition={{ repeat: Infinity, duration: 1 }}
+      className={`flex items-center gap-3 px-4 py-2 rounded-2xl glass ${glowClass}`}
+      animate={isUrgent ? { scale: [1, 1.03, 1] } : {}}
+      transition={{ repeat: Infinity, duration: 0.8 }}
     >
-      <div className="relative w-24 h-24">
-        {/* Background circle */}
-        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+      {/* Mini circular progress */}
+      <div className="relative w-10 h-10">
+        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 44 44">
           <circle
-            cx="50"
-            cy="50"
-            r="45"
+            cx="22"
+            cy="22"
+            r="20"
             fill="none"
-            stroke="#1a2541"
-            strokeWidth="2"
+            stroke="rgba(255,255,255,0.06)"
+            strokeWidth="2.5"
           />
-          {/* Progress ring */}
           <motion.circle
-            cx="50"
-            cy="50"
-            r="45"
+            cx="22"
+            cy="22"
+            r="20"
             fill="none"
-            stroke={isWarning ? '#dc2626' : '#d4a853'}
-            strokeWidth="2"
-            strokeDasharray={`${2 * Math.PI * 45}`}
-            strokeDashoffset={`${2 * Math.PI * 45 * (1 - progress)}`}
+            stroke={strokeColor}
+            strokeWidth="2.5"
+            strokeDasharray={circumference}
+            strokeDashoffset={circumference * (1 - progress)}
             strokeLinecap="round"
+            style={{ filter: `drop-shadow(0 0 4px ${strokeColor}40)` }}
           />
         </svg>
-
-        {/* Time text */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <span
-            className={`text-2xl font-bold ${
-              isWarning ? 'text-red-500' : 'text-gold'
-            }`}
-          >
-            {displayTime}
+          <span className="text-[10px] font-bold" style={{ color: strokeColor }}>
+            {Math.ceil(progress * 100)}%
           </span>
         </div>
       </div>
 
-      <div className="text-xs text-gray-400">남은 시간</div>
+      {/* Time display */}
+      <div>
+        <span
+          className="text-xl font-extrabold tracking-wider tabular-nums"
+          style={{ color: strokeColor }}
+        >
+          {displayTime}
+        </span>
+        <p className="text-[10px] text-gray-500 font-medium">남은 시간</p>
+      </div>
     </motion.div>
   )
 }

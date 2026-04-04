@@ -26,16 +26,26 @@ export function MapView({
 
   // Load Kakao Maps API
   useEffect(() => {
-    if (window.kakao) {
+    if (window.kakao && window.kakao.maps) {
       setMapLoaded(true)
+      return
+    }
+
+    // If kakao object exists but maps isn't ready yet (script already loaded)
+    if (window.kakao) {
+      window.kakao.maps.load(() => {
+        setMapLoaded(true)
+      })
       return
     }
 
     const script = document.createElement('script')
     const apiKey = import.meta.env.VITE_KAKAO_MAP_KEY || 'YOUR_KAKAO_API_KEY'
-    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${apiKey}&libraries=services,clusterer`
+    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${apiKey}&libraries=services,clusterer&autoload=false`
     script.onload = () => {
-      setMapLoaded(true)
+      window.kakao.maps.load(() => {
+        setMapLoaded(true)
+      })
     }
     script.onerror = () => {
       console.error('Failed to load Kakao Maps API')
@@ -49,9 +59,9 @@ export function MapView({
     }
   }, [])
 
-  // Initialize map
+  // Initialize map (only once)
   useEffect(() => {
-    if (!mapLoaded || !mapRef.current) return
+    if (!mapLoaded || !mapRef.current || mapInstanceRef.current) return
 
     const { kakao } = window
     const mapContainer = mapRef.current
@@ -66,27 +76,33 @@ export function MapView({
     const map = new kakao.maps.Map(mapContainer, mapOptions)
     mapInstanceRef.current = map
 
-    // Add info window styles
-    const style = document.createElement('style')
-    style.textContent = `
-      .kakao_map_info {
-        background-color: rgba(15, 23, 42, 0.95);
-        border: 1px solid rgba(212, 168, 83, 0.5);
-        border-radius: 8px;
-        padding: 12px;
-        color: #faf7f2;
-      }
-      .kakao_map_info p {
-        margin: 0;
-        font-size: 14px;
-        color: #d1d5db;
-      }
-      .kakao_map_info strong {
-        color: #d4a853;
-      }
-    `
-    document.head.appendChild(style)
-  }, [mapLoaded, playerPosition])
+    // Add info window styles once
+    if (!document.getElementById('kakao-map-styles')) {
+      const style = document.createElement('style')
+      style.id = 'kakao-map-styles'
+      style.textContent = `
+        .kakao_map_info {
+          background-color: rgba(10, 15, 30, 0.95);
+          border: 1px solid rgba(212, 168, 83, 0.4);
+          border-radius: 12px;
+          padding: 10px 14px;
+          color: #f0ede6;
+          font-family: system-ui, -apple-system, sans-serif;
+          backdrop-filter: blur(12px);
+        }
+        .kakao_map_info p {
+          margin: 0;
+          font-size: 13px;
+          color: #9ca3af;
+        }
+        .kakao_map_info strong {
+          color: #d4a853;
+          font-size: 14px;
+        }
+      `
+      document.head.appendChild(style)
+    }
+  }, [mapLoaded])
 
   // Update location markers
   useEffect(() => {
@@ -158,8 +174,8 @@ export function MapView({
   return (
     <div
       ref={mapRef}
-      className="w-full h-full rounded-lg overflow-hidden border border-slate-700/40"
-      style={{ backgroundColor: '#0f172a', minHeight: '300px' }}
+      className="w-full h-full overflow-hidden"
+      style={{ backgroundColor: '#0a0f1e', minHeight: '250px' }}
     />
   )
 }

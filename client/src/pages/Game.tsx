@@ -1,385 +1,351 @@
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
-import { useSocket } from '../hooks/useSocket'
 import { useGPS } from '../hooks/useGPS'
-import { useTimer } from '../hooks/useTimer'
+import { useSocket } from '../hooks/useSocket'
 import { MapView } from '../components/MapView'
 import { HintCard } from '../components/HintCard'
-import { getTeamLocations, calculateDistance } from '../data/gameData'
-import type { Location, GameState } from '../../../shared/types'
+import {
+  getTeamConfig,
+  getTeamVisibleLocations,
+  calculateDistance,
+  getDirectionBearing,
+  getTeamRound,
+} from '../data/gameData'
+import type { Location } from '../../../shared/types'
 
-function formatDistance(meters: number) {
-  if (meters === Infinity) return '--'
-  if (meters < 1000) return `${Math.round(meters)}m`
-  return `${(meters / 1000).toFixed(1)}km`
+const DIRECTION_ARROWS = ['↑', '↗', '→', '↘', '↓', '↙', '←', '↖'] as const
+
+function bearingToArrow(bearing: number): string {
+  const idx = Math.round(bearing / 45) % 8
+  return DIRECTION_ARROWS[idx]
 }
 
-function getBearingArrow(lat1: number, lng1: number, lat2: number, lng2: number) {
-  const dLon = ((lng2 - lng1) * Math.PI) / 180
-  const y = Math.sin(dLon) * Math.cos((lat2 * Math.PI) / 180)
-  const x = Math.cos((lat1 * Math.PI) / 180) * Math.sin((lat2 * Math.PI) / 180) -
-    Math.sin((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.cos(dLon)
-  const bearing = ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360
-  const arrows = ['↑', '↗', '→', '↘', '↓', '↙', '←', '↖']
-  return arrows[Math.round(bearing / 45) % 8]
+function formatDistance(m: number): string {
+  return m >= 1000 ? `${(m / 1000).toFixed(1)}km` : `${Math.round(m)}m`
 }
 
 export function Game() {
   const navigate = useNavigate()
+  const { position, error: gpsError } = useGPS()
   const { socket, isConnected } = useSocket()
-  const { position: gpsPosition, error: gpsError } = useGPS()
-  const [gameState, setGameState] = useState<GameState | null>(null)
-  const [teamId, setTeamId] = useState<number | null>(null)
-  const [playerId, setPlayerId] = useState<string | null>(null)
-  const [isCheckingLocation, setIsCheckingLocation] = useState(false)
-  const [foundLocations, setFoundLocations] = useState<Set<string>>(new Set())
-  const [currentIndex, setCurrentIndex] = useState(0)
 
-  const timer = useTimer(gameState?.startTime || null, gameState?.duration || 0)
-
-  const teamLocations = useMemo(() => {
-    if (!teamId) return []
-    return getTeamLocations(teamId)
-  }, [teamId])
-
-  const currentLocation: Location | null = teamLocations[currentIndex] || null
-
-  useEffect(() => {
-    const storedTeamId = localStorage.getItem('teamId')
-    const storedPlayerId = localStorage.getItem('playerId')
-    if (storedTeamId && storedPlayerId) {
-      setTeamId(parseInt(storedTeamId, 10))
-      setPlayerId(storedPlayerId)
-    } else {
-      navigate('/')
+  // 로그인 정보
+  const [teamId] = useState<number>(() => {
+    const saved = localStorage.getItem('teamId')
+    return saved ? parseInt(saved, 10) : 0
+  })
+  const [playerId] = useState<string>(() => {
+    let id = localStorage.getItem('playerId')
+    if (!id) {
+      id = `player_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+      localStorage.setItem('playerId', id)
     }
-    const savedFound = localStorage.getItem('foundLocations')
-    if (savedFound) {
-      try { setFoundLocations(new Set(JSON.parse(savedFound) as string[])) } catch { /* ignore */ }
-    }
-    const savedIndex = localStorage.getItem('currentLocationIndex')
-    if (savedIndex) setCurrentIndex(parseInt(savedIndex, 10) || 0)
-  }, [navigate])
+    return id
+  })
 
-  useEffect(() => {
-    localStorage.setItem('foundLocations', JSON.stringify([...foundLocations]))
-    localStorage.setItem('currentLocationIndex', currentIndex.toString())
-  }, [foundLocations, currentIndex])
+  // 게임 상태
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
+  const [unlocked, setUnlocked] = useState(false)
+  const [scorePhoto, setScorePhoto] = useState<string | null>(null)
+  const [wrongGuess, setWrongGuess] = useState<string | null>(null)
+  const [memberCount, setMemberCount] = useState<{ count: number; needed: number } | null>(null)
+  const [gameActive, setGameActive] = useState(false)
+  const [serverTime, setServerTime] = useState<{ startTime: number; duration: number } | null>(null)
+  const [timerDisplay, setTimerDisplay] = useState('00:00')
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
+  // 팀 설정
+  const teamConfig = getTeamConfig(teamId)
+  const visibleLocations = getTeamVisibleLocations(teamId)
+  const teamRound = getTeamRound(teamId)
+
+  // 로그인 안 되어 있으면 홈으로
   useEffect(() => {
-    if (!socket || !teamId || !playerId || !isConnected) return
+    if (!teamId || !teamConfig) navigate('/')
+  }, [teamId, teamConfig, navigate])
+
+  // Socket 연결 및 이벤트 처리
+  useEffect(() => {
+    if (!socket || !teamId) return
+
+    // 팀 참가
     socket.emit('player:join', { teamId, playerId })
-  }, [socket, teamId, playerId, isConnected])
 
-  useEffect(() => {
-    if (!socket) return
-    const handleGameState = (state: GameState) => setGameState(state)
-    socket.on('game:state', handleGameState)
-    return () => { socket.off('game:state', handleGameState) }
-  }, [socket])
+    // 게임 상태 수신
+    socket.on('game:state', (state) => {
+      setGameActive(state.isActive)
+      if (state.startTime) {
+        setServerTime({ startTime: state.startTime, duration: state.duration })
+      }
+      // 이미 해금한 팀인지 확인
+      const teamState = state.teams[teamId]
+      if (teamState?.unlockedLocation) {
+        setUnlocked(true)
+        setScorePhoto(teamState.scorePhoto)
+      }
+    })
 
+    // 정답!
+    socket.on('team:unlock', (data) => {
+      if (data.teamId === teamId) {
+        setUnlocked(true)
+        setScorePhoto(data.photo)
+        setWrongGuess(null)
+        navigate('/result/correct', { state: { photoUrl: data.photo } })
+      }
+    })
+
+    // 오답
+    socket.on('team:wrong', (data) => {
+      if (data.teamId === teamId) {
+        setWrongGuess(data.locationId)
+        setTimeout(() => setWrongGuess(null), 3000)
+      }
+    })
+
+    // 팀원 수
+    socket.on('team:memberCount', (data) => {
+      setMemberCount({ count: data.count, needed: data.needed })
+      setTimeout(() => setMemberCount(null), 5000)
+    })
+
+    // 에러
+    socket.on('error', (data) => {
+      setErrorMsg(data.message)
+      setTimeout(() => setErrorMsg(null), 4000)
+    })
+
+    return () => {
+      socket.off('game:state')
+      socket.off('team:unlock')
+      socket.off('team:wrong')
+      socket.off('team:memberCount')
+      socket.off('error')
+    }
+  }, [socket, teamId, playerId, navigate])
+
+  // GPS 위치 서버에 전송
   useEffect(() => {
-    if (!socket || !gpsPosition || !teamId || !playerId) return
+    if (!socket || !position || !teamId) return
+    socket.emit('player:position', {
+      playerId,
+      teamId,
+      lat: position.lat,
+      lng: position.lng,
+      timestamp: Date.now(),
+    })
+  }, [socket, position, teamId, playerId])
+
+  // 타이머
+  useEffect(() => {
+    if (!gameActive || !serverTime) {
+      setTimerDisplay('00:00')
+      return
+    }
     const interval = setInterval(() => {
-      socket.emit('player:position', {
-        playerId, teamId,
-        lat: gpsPosition.lat, lng: gpsPosition.lng,
-        timestamp: Date.now(),
-      })
-    }, 3000)
+      const elapsed = Date.now() - serverTime.startTime
+      const remaining = Math.max(0, serverTime.duration - elapsed)
+      const mins = Math.floor(remaining / 60000)
+      const secs = Math.floor((remaining % 60000) / 1000)
+      setTimerDisplay(`${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`)
+      if (remaining <= 0) {
+        setGameActive(false)
+        clearInterval(interval)
+      }
+    }, 1000)
     return () => clearInterval(interval)
-  }, [socket, gpsPosition, teamId, playerId])
+  }, [gameActive, serverTime])
 
-  const distanceToCurrent = useMemo(() => {
-    if (!gpsPosition || !currentLocation) return Infinity
-    return calculateDistance(gpsPosition.lat, gpsPosition.lng, currentLocation.lat, currentLocation.lng)
-  }, [gpsPosition, currentLocation])
+  // 장소 선택하여 체크
+  const handleCheckLocation = useCallback((locationId: string) => {
+    if (!socket || unlocked) return
+    setSelectedLocation(locationId)
+    socket.emit('player:checkLocation', { locationId })
+  }, [socket, unlocked])
 
-  const status = useMemo(() => {
-    if (!currentLocation) return 'far' as const
-    if (distanceToCurrent <= currentLocation.unlockRadius) return 'arrived' as const
-    if (distanceToCurrent <= currentLocation.approachRadius) return 'approaching' as const
-    return 'far' as const
-  }, [distanceToCurrent, currentLocation])
+  // 각 장소까지의 거리/방향 계산
+  function getLocationInfo(loc: Location) {
+    if (!position) return { distance: null, arrow: '', status: 'unknown' as const }
+    const dist = calculateDistance(position.lat, position.lng, loc.lat, loc.lng)
+    const bearing = getDirectionBearing(position.lat, position.lng, loc.lat, loc.lng)
+    const arrow = bearingToArrow(bearing)
+    let status: 'inside' | 'approaching' | 'outside' = 'outside'
+    if (dist <= loc.unlockRadius) status = 'inside'
+    else if (dist <= loc.approachRadius) status = 'approaching'
+    return { distance: dist, arrow, status }
+  }
 
-  const isCurrentFound = currentLocation ? foundLocations.has(currentLocation.id) : false
-
-  const handleCheckIn = useCallback(() => {
-    if (!currentLocation || isCheckingLocation || status !== 'arrived' || isCurrentFound) return
-    setIsCheckingLocation(true)
-    if (socket) socket.emit('player:checkLocation', { locationId: currentLocation.id })
-    setFoundLocations((prev) => { const next = new Set(prev); next.add(currentLocation.id); return next })
-    setTimeout(() => {
-      setIsCheckingLocation(false)
-      const nextUnfound = teamLocations.findIndex((loc, idx) => idx > currentIndex && !foundLocations.has(loc.id))
-      if (nextUnfound !== -1) setCurrentIndex(nextUnfound)
-    }, 1500)
-  }, [currentLocation, isCheckingLocation, status, isCurrentFound, socket, teamLocations, currentIndex, foundLocations])
-
-  const timerExpired = timer.isExpired
-  const allFound = teamLocations.length > 0 && teamLocations.every((loc) => foundLocations.has(loc.id))
-
-  if (!teamId) return null
+  if (!teamConfig) return null
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0a0a0f', display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-      {/* Header */}
-      <div style={{
-        padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)',
-        background: 'rgba(10,10,15,0.95)', backdropFilter: 'blur(12px)',
-        zIndex: 100, position: 'sticky', top: 0,
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ background: '#0a0a0f', minHeight: '100vh', color: '#e0e0e0', fontFamily: "'Noto Serif KR', serif" }}>
+      {/* 헤더 */}
+      <div style={{ position: 'sticky', top: 0, zIndex: 50, background: '#0a0a0f', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px' }}>
           <div>
-            <div style={{ fontSize: '15px', fontWeight: '700', color: 'rgba(255,255,255,0.85)', letterSpacing: '-0.01em' }}>
-              팀 {teamId}
-            </div>
-            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>
-              {foundLocations.size}/{teamLocations.length} 해금됨
+            <div style={{ fontWeight: 700, fontSize: 16 }}>팀 {teamId}</div>
+            <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+              라운드 {teamRound} · {unlocked ? '해금 완료 ✓' : '탐색 중'}
             </div>
           </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {/* Timer */}
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '18px', fontWeight: '700', color: 'rgba(255,255,255,0.7)', fontFamily: 'monospace' }}>
-                {timer.minutes.toString().padStart(2, '0')}:{timer.seconds.toString().padStart(2, '0')}
-              </div>
-            </div>
-
-            {/* GPS Status */}
-            {gpsError ? (
-              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ff6b6b' }} />
-            ) : isConnected ? (
-              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#6fea8d', animation: 'pulse-dot 2s infinite' }} />
-            ) : (
-              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)' }} />
-            )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontFamily: 'monospace', fontSize: 20, fontWeight: 600, color: gameActive ? '#6fea8d' : '#888' }}>
+              {timerDisplay}
+            </span>
+            <span style={{
+              width: 8, height: 8, borderRadius: '50%',
+              background: isConnected ? '#6fea8d' : '#ef4444',
+              display: 'inline-block',
+            }} />
           </div>
-        </div>
-
-        {/* Progress bar */}
-        <div style={{ marginTop: '10px', height: '3px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px', overflow: 'hidden' }}>
-          <div style={{
-            height: '100%', width: `${(foundLocations.size / teamLocations.length) * 100}%`,
-            background: 'linear-gradient(90deg, #6fea8d, #4ecdc4)',
-            borderRadius: '2px', transition: 'width 0.5s ease',
-          }} />
         </div>
       </div>
 
-      {/* GPS Error */}
+      {/* GPS 에러 */}
       {gpsError && (
-        <div style={{ padding: '10px 20px', background: 'rgba(255,100,100,0.06)', borderBottom: '1px solid rgba(255,100,100,0.1)' }}>
-          <span style={{ fontSize: '12px', color: '#ff6b6b' }}>{gpsError}</span>
+        <div style={{ background: 'rgba(239,68,68,0.1)', borderBottom: '1px solid rgba(239,68,68,0.2)', padding: '8px 16px', fontSize: 12, color: '#f87171' }}>
+          {gpsError}
         </div>
       )}
 
-      {/* Map — 55% */}
-      <div style={{ flex: '0 0 50%', position: 'relative' }}>
-        {gpsPosition ? (
-          <MapView
-            locations={teamLocations}
-            playerPosition={{ lat: gpsPosition.lat, lng: gpsPosition.lng }}
-            onLocationSelect={(id) => { const idx = teamLocations.findIndex((l) => l.id === id); if (idx !== -1) setCurrentIndex(idx) }}
-          />
-        ) : (
-          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0f' }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '32px', marginBottom: '12px' }}>📍</div>
-              <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.3)' }}>위치 정보를 기다리는 중...</p>
-            </div>
-          </div>
-        )}
+      {/* 에러 메시지 */}
+      {errorMsg && (
+        <div style={{ background: 'rgba(251,191,36,0.1)', borderBottom: '1px solid rgba(251,191,36,0.2)', padding: '8px 16px', fontSize: 12, color: '#ffc832' }}>
+          {errorMsg}
+        </div>
+      )}
+
+      {/* 게임 비활성 안내 */}
+      {!gameActive && !unlocked && (
+        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', textAlign: 'center', fontSize: 13, color: '#888' }}>
+          ⏳ 관리자가 라운드를 시작하면 게임이 시작됩니다
+        </div>
+      )}
+
+      {/* 지도 */}
+      <div style={{ width: '100%', height: '35vh', minHeight: 200 }}>
+        <MapView
+          locations={visibleLocations}
+          playerPosition={position ? { lat: position.lat, lng: position.lng } : null}
+          onLocationSelect={handleCheckLocation}
+        />
       </div>
 
-      {/* Bottom panel — 50% */}
-      <div style={{
-        flex: 1, borderTop: '1px solid rgba(255,255,255,0.06)',
-        display: 'flex', flexDirection: 'column', overflow: 'hidden',
-      }}>
-        {allFound ? (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-            <motion.div style={{ textAlign: 'center' }} initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-              <div style={{ fontSize: '40px', marginBottom: '16px' }}>🎵</div>
-              <div style={{ fontSize: '18px', fontWeight: '700', color: '#6fea8d', marginBottom: '6px' }}>모든 단서를 수집했습니다</div>
-              <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)', lineHeight: 1.6 }}>
-                악보를 완성하고<br />센터로 복귀하세요
-              </div>
-            </motion.div>
-          </div>
-        ) : currentLocation ? (
-          <>
-            {/* Location nav */}
-            <div style={{
-              padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              borderBottom: '1px solid rgba(255,255,255,0.04)',
-            }}>
-              <button
-                onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
-                disabled={currentIndex === 0}
-                style={{
-                  background: 'none', border: 'none', color: currentIndex === 0 ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.5)',
-                  fontSize: '20px', cursor: currentIndex === 0 ? 'not-allowed' : 'pointer', padding: '4px 8px',
-                }}
-              >
-                ‹
-              </button>
-
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '2px' }}>
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    width: '24px', height: '24px', borderRadius: '6px',
-                    background: isCurrentFound ? 'rgba(100,255,150,0.15)' : 'rgba(255,255,255,0.08)',
-                    fontSize: '11px', fontWeight: '700', fontFamily: 'monospace',
-                    color: isCurrentFound ? '#6fea8d' : 'rgba(255,255,255,0.5)',
-                  }}>
-                    {currentLocation.id}
-                  </span>
-                  <span style={{ fontSize: '16px', fontWeight: '600', color: 'rgba(255,255,255,0.85)' }}>
-                    {currentLocation.name}
-                  </span>
-                </div>
-                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>
-                  {currentIndex + 1} / {teamLocations.length}
-                </div>
-              </div>
-
-              <button
-                onClick={() => setCurrentIndex(Math.min(teamLocations.length - 1, currentIndex + 1))}
-                disabled={currentIndex === teamLocations.length - 1}
-                style={{
-                  background: 'none', border: 'none',
-                  color: currentIndex === teamLocations.length - 1 ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.5)',
-                  fontSize: '20px', cursor: currentIndex === teamLocations.length - 1 ? 'not-allowed' : 'pointer', padding: '4px 8px',
-                }}
-              >
-                ›
-              </button>
-            </div>
-
-            {/* Content */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {/* Distance & status */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{
-                    fontSize: '12px', fontWeight: '600', padding: '4px 10px', borderRadius: '6px',
-                    background: isCurrentFound ? 'rgba(100,255,150,0.1)' : status === 'arrived' ? 'rgba(100,255,150,0.1)' : status === 'approaching' ? 'rgba(255,200,50,0.1)' : 'rgba(255,255,255,0.04)',
-                    color: isCurrentFound ? '#6fea8d' : status === 'arrived' ? '#6fea8d' : status === 'approaching' ? '#ffc832' : 'rgba(255,255,255,0.35)',
-                    border: `1px solid ${isCurrentFound ? 'rgba(100,255,150,0.2)' : status === 'arrived' ? 'rgba(100,255,150,0.2)' : status === 'approaching' ? 'rgba(255,200,50,0.2)' : 'rgba(255,255,255,0.06)'}`,
-                  }}>
-                    {isCurrentFound ? '해금됨 ✓' : status === 'arrived' ? '도착!' : status === 'approaching' ? '접근 중' : '탐색 중'}
-                  </span>
-                </div>
-
-                {!isCurrentFound && gpsPosition && currentLocation && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{
-                      fontSize: '20px', fontWeight: '700', fontFamily: 'monospace',
-                      color: status === 'arrived' ? '#6fea8d' : status === 'approaching' ? '#ffc832' : 'rgba(255,255,255,0.4)',
-                    }}>
-                      {formatDistance(distanceToCurrent)}
-                    </span>
-                    <span style={{
-                      fontSize: '18px',
-                      color: status === 'arrived' ? '#6fea8d' : status === 'approaching' ? '#ffc832' : 'rgba(255,255,255,0.3)',
-                    }}>
-                      {getBearingArrow(gpsPosition.lat, gpsPosition.lng, currentLocation.lat, currentLocation.lng)}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Approaching warning */}
-              {status === 'approaching' && !isCurrentFound && (
-                <div style={{ fontSize: '12px', color: '#ffc832', fontWeight: '600' }}>
-                  ⚡ 가까워지고 있습니다...
-                </div>
-              )}
-
-              {/* Hint */}
-              <HintCard hint={currentLocation.hint} />
-
-              {/* Check-in button */}
-              {!isCurrentFound && (
-                <button
-                  onClick={handleCheckIn}
-                  disabled={status !== 'arrived' || isCheckingLocation}
-                  style={{
-                    width: '100%', padding: '16px',
-                    background: status === 'arrived' ? 'rgba(100,255,150,0.15)' : 'rgba(255,255,255,0.03)',
-                    color: status === 'arrived' ? '#6fea8d' : 'rgba(255,255,255,0.2)',
-                    border: `1px solid ${status === 'arrived' ? 'rgba(100,255,150,0.25)' : 'rgba(255,255,255,0.05)'}`,
-                    borderRadius: '12px', fontSize: '15px', fontWeight: '700',
-                    cursor: status === 'arrived' ? 'pointer' : 'not-allowed',
-                    fontFamily: "'Noto Serif KR', serif",
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  {isCheckingLocation ? '확인 중...' : status === 'arrived' ? '이 장소 해금하기' : '장소에 도착하면 해금'}
-                </button>
-              )}
-
-              {isCurrentFound && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  style={{
-                    padding: '16px', borderRadius: '12px',
-                    background: 'rgba(100,255,150,0.06)',
-                    border: '1px solid rgba(100,255,150,0.15)',
-                    textAlign: 'center',
-                  }}
-                >
-                  <span style={{ fontSize: '14px', color: '#6fea8d', fontWeight: '600' }}>해금됨 ✓</span>
-                </motion.div>
-              )}
-            </div>
-          </>
-        ) : null}
+      {/* 힌트 카드 */}
+      <div style={{ padding: '12px 16px' }}>
+        <HintCard hint={teamConfig.hint} />
       </div>
 
-      {/* Game over */}
-      <AnimatePresence>
-        {timerExpired && (
-          <motion.div
-            style={{
-              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
-              backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center',
-              justifyContent: 'center', zIndex: 200, padding: '24px',
-            }}
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          >
-            <motion.div
-              style={{
-                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: '20px', padding: '40px', textAlign: 'center', maxWidth: '320px', width: '100%',
-              }}
-              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-            >
-              <div style={{ fontSize: '40px', marginBottom: '16px' }}>🎵</div>
-              <h2 style={{ fontSize: '22px', fontWeight: '700', color: 'rgba(255,255,255,0.9)', marginBottom: '8px' }}>게임 종료</h2>
-              <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.4)', marginBottom: '24px' }}>
-                {foundLocations.size}/{teamLocations.length}개 단서를 수집했습니다
-              </p>
+      {/* 팀원 수 안내 */}
+      {memberCount && (
+        <div style={{
+          margin: '0 16px 12px', padding: '10px 14px', borderRadius: 8,
+          background: memberCount.count >= memberCount.needed ? 'rgba(111,234,141,0.1)' : 'rgba(251,191,36,0.1)',
+          border: `1px solid ${memberCount.count >= memberCount.needed ? 'rgba(111,234,141,0.2)' : 'rgba(251,191,36,0.2)'}`,
+          fontSize: 13,
+        }}>
+          👥 현재 위치에 팀원 <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{memberCount.count}/{memberCount.needed}</span>명
+          {memberCount.count < memberCount.needed && ' — 팀원이 더 모여야 합니다'}
+          {memberCount.count >= memberCount.needed && ' ✓ 해금 가능!'}
+        </div>
+      )}
+
+      {/* 오답 알림 */}
+      {wrongGuess && (
+        <div style={{
+          margin: '0 16px 12px', padding: '10px 14px', borderRadius: 8,
+          background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)',
+          fontSize: 13, color: '#f87171', textAlign: 'center',
+        }}>
+          ✕ 이 장소는 정답이 아닙니다. 힌트를 다시 읽어보세요!
+        </div>
+      )}
+
+      {/* 장소 목록 */}
+      <div style={{ padding: '0 16px 24px' }}>
+        <div style={{ fontSize: 11, color: '#666', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 10 }}>
+          탐색 장소 ({visibleLocations.length}곳 중 1곳이 정답)
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {visibleLocations.map((loc) => {
+            const info = getLocationInfo(loc)
+            const isWrong = wrongGuess === loc.id
+            const isSelected = selectedLocation === loc.id
+
+            return (
               <button
-                onClick={() => { localStorage.removeItem('foundLocations'); localStorage.removeItem('currentLocationIndex'); navigate('/') }}
+                key={loc.id}
+                onClick={() => handleCheckLocation(loc.id)}
+                disabled={unlocked || !gameActive}
                 style={{
-                  width: '100%', padding: '14px', background: 'rgba(255,255,255,0.9)',
-                  color: '#0a0a0f', border: 'none', borderRadius: '12px',
-                  fontSize: '15px', fontWeight: '700', cursor: 'pointer',
+                  width: '100%', textAlign: 'left', padding: '14px 16px',
+                  borderRadius: 10,
+                  background: isWrong
+                    ? 'rgba(239,68,68,0.08)'
+                    : isSelected
+                    ? 'rgba(111,234,141,0.06)'
+                    : 'rgba(255,255,255,0.03)',
+                  border: `1px solid ${
+                    isWrong ? 'rgba(239,68,68,0.3)' : isSelected ? 'rgba(111,234,141,0.2)' : 'rgba(255,255,255,0.06)'
+                  }`,
+                  color: '#e0e0e0',
+                  cursor: unlocked || !gameActive ? 'default' : 'pointer',
+                  opacity: unlocked ? 0.5 : 1,
                   fontFamily: "'Noto Serif KR', serif",
+                  transition: 'all 0.2s',
                 }}
               >
-                돌아가기
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{
+                      width: 28, height: 28, borderRadius: 6,
+                      background: info.status === 'inside' ? 'rgba(111,234,141,0.15)' :
+                                  info.status === 'approaching' ? 'rgba(255,200,50,0.15)' : 'rgba(255,255,255,0.06)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 12, fontFamily: 'monospace', fontWeight: 600,
+                      color: info.status === 'inside' ? '#6fea8d' :
+                             info.status === 'approaching' ? '#ffc832' : '#888',
+                    }}>
+                      {loc.id}
+                    </span>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>{loc.name}</div>
+                      <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
+                        {info.status === 'inside' && <span style={{ color: '#6fea8d' }}>도착! · 해금 가능</span>}
+                        {info.status === 'approaching' && <span style={{ color: '#ffc832' }}>접근 중</span>}
+                        {info.status === 'outside' && '탐색 중'}
+                        {isWrong && <span style={{ color: '#f87171' }}> · 오답</span>}
+                      </div>
+                    </div>
+                  </div>
+                  {info.distance !== null && (
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontFamily: 'monospace', fontSize: 15, fontWeight: 600, color: info.status === 'inside' ? '#6fea8d' : '#ccc' }}>
+                        {formatDistance(info.distance)}
+                      </div>
+                      <div style={{ fontSize: 16, color: '#888' }}>{info.arrow}</div>
+                    </div>
+                  )}
+                </div>
               </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* 해금 완료 */}
+      {unlocked && (
+        <div style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0,
+          padding: '20px 16px', background: 'linear-gradient(transparent, #0a0a0f 30%)',
+          textAlign: 'center',
+        }}>
+          <div style={{ fontSize: 36, marginBottom: 8 }}>🎵</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#6fea8d' }}>악보 조각을 획득했습니다!</div>
+          {scorePhoto && <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>{scorePhoto}</div>}
+        </div>
+      )}
     </div>
   )
 }

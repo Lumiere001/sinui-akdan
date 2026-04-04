@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { getTeamByIdAndPassword } from '../data/gameData'
+import { validateTeamLogin } from '../data/gameData'
 
 export function Landing() {
   const navigate = useNavigate()
@@ -16,14 +16,13 @@ export function Landing() {
       setError('팀 번호를 확인해주세요 (1-10)')
       return
     }
-    const team = getTeamByIdAndPassword(teamNum, passwordInput)
-    if (!team) {
+    if (!validateTeamLogin(teamNum, passwordInput)) {
       setError('비밀번호가 올바르지 않습니다')
       return
     }
     setError('')
-    localStorage.setItem('teamId', team.teamId.toString())
-    localStorage.setItem('playerId', `player-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`)
+    localStorage.setItem('teamId', teamNum.toString())
+    localStorage.setItem('playerId', `player_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`)
     navigate('/game')
   }
 
@@ -117,9 +116,9 @@ export function Landing() {
                   borderRadius: '12px',
                 }}>
                   {[
-                    { icon: '📍', title: '장소 찾기', desc: '팀에게 배정된 5개의 장소를 순서대로 찾아가세요. 각 장소에는 힌트가 제공됩니다.' },
-                    { icon: '⏱', title: '제한 시간', desc: '30분 안에 최대한 많은 장소를 찾으면 됩니다. 지도와 힌트를 잘 활용하세요!' },
-                    { icon: '👥', title: '팀 협동', desc: '팀원들과 함께 움직이세요. 장소에 도착하면 체크인 버튼으로 확인합니다.' },
+                    { icon: '📍', title: '장소 찾기', desc: '5개의 후보 장소 중 힌트를 읽고 1곳의 정답 장소를 찾아가세요.' },
+                    { icon: '⏱', title: '제한 시간', desc: '30분 안에 정답 장소를 찾으면 악보 조각을 획득합니다.' },
+                    { icon: '👥', title: '팀 협동', desc: '팀원 3명 이상이 정답 장소 근처(50m)에 모여야 해금됩니다. 함께 움직이세요!' },
                   ].map((rule, i) => (
                     <div key={i} style={{
                       display: 'flex', gap: '12px', alignItems: 'flex-start',

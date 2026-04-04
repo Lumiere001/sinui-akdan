@@ -1,267 +1,275 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
 import { useSocket } from '../hooks/useSocket'
-import { useTimer } from '../hooks/useTimer'
-import type { GameState, PlayerPosition } from '../../../shared/types'
-import { TEAMS, getTeamLocations } from '../data/gameData'
+import type { GameState } from '../../../shared/types'
+
+const ADMIN_PASSWORD = 'admin2024'
 
 export function Admin() {
-  const navigate = useNavigate()
   const { socket, isConnected } = useSocket()
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [password, setPassword] = useState('')
+  const [loginError, setLoginError] = useState(false)
   const [gameState, setGameState] = useState<GameState | null>(null)
-  const [allPositions, setAllPositions] = useState<Record<number, PlayerPosition[]>>({})
+  const [, setTick] = useState(0)
 
-  const timer = useTimer(gameState?.startTime || null, gameState?.duration || 0)
-
-  const handlePasswordSubmit = () => {
-    if (password === 'admin1234') {
-      setIsAuthenticated(true)
-      setPassword('')
+  // Admin 로그인
+  function handleLogin() {
+    if (password === ADMIN_PASSWORD) {
+      setIsLoggedIn(true)
+      setLoginError(false)
     } else {
-      alert('잘못된 비밀번호입니다')
-      setPassword('')
+      setLoginError(true)
     }
   }
 
+  // Socket 이벤트
   useEffect(() => {
-    if (!socket) return
-    const handleGameState = (state: GameState) => setGameState(state)
-    const handleAllPositions = (data: Record<number, PlayerPosition[]>) => setAllPositions(data)
-    socket.on('game:state', handleGameState)
-    socket.on('admin:allPositions', handleAllPositions)
-    return () => { socket.off('game:state', handleGameState); socket.off('admin:allPositions', handleAllPositions) }
-  }, [socket])
+    if (!socket || !isLoggedIn) return
 
-  const handleStartRound = (roundId: number) => { if (socket) socket.emit('admin:startRound', roundId) }
-  const handleStopRound = () => { if (socket) socket.emit('admin:stopRound') }
-  const handleResetGame = () => { if (socket && confirm('게임을 초기화하시겠습니까?')) socket.emit('admin:resetGame') }
+    socket.on('game:state', (state) => {
+      setGameState(state)
+    })
 
-  // Login screen
-  if (!isAuthenticated) {
+    // admin room join을 위해 임시 join
+    socket.emit('player:join', { teamId: 0, playerId: 'admin' })
+
+    return () => {
+      socket.off('game:state')
+    }
+  }, [socket, isLoggedIn])
+
+  // 타이머 틱 (1초마다 리렌더)
+  useEffect(() => {
+    if (!gameState?.isActive) return
+    const interval = setInterval(() => setTick((t) => t + 1), 1000)
+    return () => clearInterval(interval)
+  }, [gameState?.isActive])
+
+  // 라운드 시작
+  function startRound(round: number) {
+    socket?.emit('admin:startRound', round)
+  }
+
+  // 라운드 중지
+  function stopRound() {
+    socket?.emit('admin:stopRound')
+  }
+
+  // 게임 초기화
+  function resetGame() {
+    socket?.emit('admin:resetGame')
+  }
+
+  // 타이머 계산
+  function getTimerDisplay(): string {
+    if (!gameState?.isActive || !gameState.startTime) return '00:00'
+    const elapsed = Date.now() - gameState.startTime
+    const remaining = Math.max(0, gameState.duration - elapsed)
+    const mins = Math.floor(remaining / 60000)
+    const secs = Math.floor((remaining % 60000) / 1000)
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+  }
+
+  // 로그인 화면
+  if (!isLoggedIn) {
     return (
-      <div style={{
-        minHeight: '100vh', background: '#0a0a0f',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        padding: '32px 24px',
-      }}>
-        <motion.div
-          style={{ width: '100%', maxWidth: '300px' }}
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-        >
-          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-            <div style={{
-              width: '56px', height: '56px', borderRadius: '50%',
+      <div style={{ background: '#0a0a0f', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Noto Serif KR', serif" }}>
+        <div style={{ width: '100%', maxWidth: 360, padding: '0 24px' }}>
+          <div style={{ textAlign: 'center', marginBottom: 32 }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>🔒</div>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: '#e0e0e0' }}>관리자 로그인</h1>
+          </div>
+          <input
+            type="password"
+            placeholder="관리자 비밀번호"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+            style={{
+              width: '100%', padding: '14px 16px', borderRadius: 8, marginBottom: 12,
               background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '24px', marginBottom: '16px',
-            }}>
-              🔒
-            </div>
-            <h1 style={{ fontSize: '20px', fontWeight: '700', color: 'rgba(255,255,255,0.9)', marginBottom: '4px' }}>관리자</h1>
-            <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)' }}>비밀번호를 입력하세요</p>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <input
-              type="password" value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
-              placeholder="비밀번호"
-              style={{
-                width: '100%', padding: '14px 16px',
-                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: '12px', color: 'rgba(255,255,255,0.9)', fontSize: '15px',
-                fontFamily: "'Noto Serif KR', serif", outline: 'none',
-              }}
-              autoFocus
-            />
-            <button
-              onClick={handlePasswordSubmit}
-              style={{
-                width: '100%', padding: '14px',
-                background: 'rgba(255,255,255,0.9)', color: '#0a0a0f',
-                border: 'none', borderRadius: '12px', fontSize: '15px', fontWeight: '700',
-                cursor: 'pointer', fontFamily: "'Noto Serif KR', serif",
-              }}
-            >
-              로그인
-            </button>
-          </div>
-        </motion.div>
+              color: '#e0e0e0', fontSize: 14, outline: 'none', boxSizing: 'border-box',
+              fontFamily: "'Noto Serif KR', serif",
+            }}
+          />
+          {loginError && <div style={{ fontSize: 12, color: '#f87171', marginBottom: 8 }}>비밀번호가 틀렸습니다</div>}
+          <button
+            onClick={handleLogin}
+            style={{
+              width: '100%', padding: '14px', borderRadius: 8,
+              background: '#fff', color: '#0a0a0f', fontWeight: 700, fontSize: 14,
+              border: 'none', cursor: 'pointer', fontFamily: "'Noto Serif KR', serif",
+            }}
+          >
+            로그인
+          </button>
+        </div>
       </div>
     )
   }
 
-  // Dashboard
-  const totalPlayers = Object.values(allPositions).reduce((sum, arr) => sum + arr.length, 0)
+  const currentRound = gameState?.currentRound || 1
+  const roundTeams = currentRound === 1 ? [1, 2, 3, 4, 5] : [6, 7, 8, 9, 10]
+  const connectedPlayers = gameState
+    ? Object.values(gameState.teams).reduce((sum, t) => sum + Object.keys(t.members).length, 0)
+    : 0
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0a0a0f' }}>
-      {/* Header */}
+    <div style={{ background: '#0a0a0f', minHeight: '100vh', color: '#e0e0e0', fontFamily: "'Noto Serif KR', serif" }}>
+      {/* 헤더 */}
       <div style={{
-        padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)',
-        background: 'rgba(10,10,15,0.95)', backdropFilter: 'blur(12px)',
-        position: 'sticky', top: 0, zIndex: 100,
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        position: 'sticky', top: 0, zIndex: 50, background: '#0a0a0f',
+        borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '14px 16px',
       }}>
-        <div>
-          <div style={{ fontSize: '15px', fontWeight: '700', color: 'rgba(255,255,255,0.85)' }}>관리자 대시보드</div>
-          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', marginTop: '2px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isConnected ? '#6fea8d' : '#ff6b6b', display: 'inline-block' }} />
-              {isConnected ? '연결됨' : '해제'}
-            </span>
-            <span>·</span>
-            <span>{totalPlayers}명 접속</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>🎼 관리자</h1>
+            <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+              <span style={{
+                width: 6, height: 6, borderRadius: '50%', display: 'inline-block', marginRight: 4,
+                background: isConnected ? '#6fea8d' : '#ef4444',
+              }} />
+              {isConnected ? '연결됨' : '연결 끊김'} · 접속자 {connectedPlayers}명
+            </div>
+          </div>
+          <div style={{ fontFamily: 'monospace', fontSize: 28, fontWeight: 600, color: gameState?.isActive ? '#6fea8d' : '#888' }}>
+            {getTimerDisplay()}
           </div>
         </div>
-        <button
-          onClick={() => { setIsAuthenticated(false); navigate('/') }}
-          style={{
-            background: 'rgba(255,100,100,0.1)', border: '1px solid rgba(255,100,100,0.2)',
-            borderRadius: '8px', padding: '6px 14px', color: '#ff6b6b',
-            fontSize: '12px', fontWeight: '600', cursor: 'pointer',
-          }}
-        >
-          나가기
-        </button>
       </div>
 
       <div style={{ padding: '16px' }}>
-        {/* Controls */}
-        <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-          <div style={{
-            flex: 1, padding: '16px',
-            background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)',
-            borderRadius: '14px',
-          }}>
-            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase' as const, letterSpacing: '0.1em', fontWeight: '600', marginBottom: '12px' }}>
-              게임 제어
-            </div>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-              <button onClick={() => handleStartRound(1)} disabled={gameState?.isActive}
-                style={{
-                  flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid rgba(100,255,150,0.2)',
-                  background: 'rgba(100,255,150,0.08)', color: '#6fea8d', fontSize: '12px', fontWeight: '600',
-                  cursor: gameState?.isActive ? 'not-allowed' : 'pointer', opacity: gameState?.isActive ? 0.3 : 1,
-                }}>
-                ▶ 시작
-              </button>
-              <button onClick={handleStopRound} disabled={!gameState?.isActive}
-                style={{
-                  flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,100,100,0.2)',
-                  background: 'rgba(255,100,100,0.08)', color: '#ff6b6b', fontSize: '12px', fontWeight: '600',
-                  cursor: !gameState?.isActive ? 'not-allowed' : 'pointer', opacity: !gameState?.isActive ? 0.3 : 1,
-                }}>
-                ■ 중지
-              </button>
-            </div>
-            <button onClick={handleResetGame}
+        {/* 라운드 제어 */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 11, color: '#666', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 10 }}>
+            라운드 제어
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <button
+              onClick={() => startRound(1)}
+              disabled={gameState?.isActive}
               style={{
-                width: '100%', padding: '10px', borderRadius: '8px',
-                border: '1px solid rgba(255,200,50,0.2)', background: 'rgba(255,200,50,0.08)',
-                color: '#ffc832', fontSize: '12px', fontWeight: '600', cursor: 'pointer',
-              }}>
+                flex: 1, padding: '12px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+                background: currentRound === 1 && gameState?.isActive ? 'rgba(111,234,141,0.1)' : 'rgba(255,255,255,0.04)',
+                border: `1px solid ${currentRound === 1 && gameState?.isActive ? 'rgba(111,234,141,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                color: '#e0e0e0', cursor: gameState?.isActive ? 'not-allowed' : 'pointer',
+                opacity: gameState?.isActive ? 0.5 : 1,
+                fontFamily: "'Noto Serif KR', serif",
+              }}
+            >
+              ▶ R1 시작 (1~5팀)
+            </button>
+            <button
+              onClick={() => startRound(2)}
+              disabled={gameState?.isActive}
+              style={{
+                flex: 1, padding: '12px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+                background: currentRound === 2 && gameState?.isActive ? 'rgba(111,234,141,0.1)' : 'rgba(255,255,255,0.04)',
+                border: `1px solid ${currentRound === 2 && gameState?.isActive ? 'rgba(111,234,141,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                color: '#e0e0e0', cursor: gameState?.isActive ? 'not-allowed' : 'pointer',
+                opacity: gameState?.isActive ? 0.5 : 1,
+                fontFamily: "'Noto Serif KR', serif",
+              }}
+            >
+              ▶ R2 시작 (6~10팀)
+            </button>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={stopRound}
+              disabled={!gameState?.isActive}
+              style={{
+                flex: 1, padding: '10px', borderRadius: 8, fontSize: 13,
+                background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)',
+                color: '#f87171', cursor: !gameState?.isActive ? 'not-allowed' : 'pointer',
+                opacity: !gameState?.isActive ? 0.5 : 1,
+                fontFamily: "'Noto Serif KR', serif",
+              }}
+            >
+              ■ 중지
+            </button>
+            <button
+              onClick={resetGame}
+              style={{
+                flex: 1, padding: '10px', borderRadius: 8, fontSize: 13,
+                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+                color: '#888', cursor: 'pointer',
+                fontFamily: "'Noto Serif KR', serif",
+              }}
+            >
               ↻ 초기화
             </button>
           </div>
+        </div>
 
-          {/* Timer */}
-          <div style={{
-            minWidth: '130px', padding: '16px',
-            background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)',
-            borderRadius: '14px', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center',
-          }}>
-            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginBottom: '8px', fontWeight: '600', letterSpacing: '0.05em' }}>
-              남은 시간
-            </div>
-            <div style={{ fontSize: '28px', fontWeight: '700', fontFamily: 'monospace', color: 'rgba(255,255,255,0.8)' }}>
-              {timer.minutes.toString().padStart(2, '0')}:{timer.seconds.toString().padStart(2, '0')}
-            </div>
-            <div style={{ marginTop: '8px', height: '3px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${timer.progress * 100}%`, background: 'linear-gradient(90deg, #6fea8d, #4ecdc4)', borderRadius: '2px', transition: 'width 1s' }} />
-            </div>
+        {/* 현재 라운드 팀 */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 11, color: '#666', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 10 }}>
+            라운드 {currentRound} · {gameState?.isActive ? '진행 중' : '대기'}
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {roundTeams.map((tId) => {
+              const team = gameState?.teams[tId]
+              const memberCount = team ? Object.keys(team.members).length : 0
+              const hasUnlocked = !!team?.unlockedLocation
+
+              return (
+                <div key={tId} style={{
+                  padding: '12px 14px', borderRadius: 8,
+                  background: hasUnlocked ? 'rgba(111,234,141,0.06)' : 'rgba(255,255,255,0.03)',
+                  border: `1px solid ${hasUnlocked ? 'rgba(111,234,141,0.2)' : 'rgba(255,255,255,0.06)'}`,
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{
+                        width: 28, height: 28, borderRadius: 6,
+                        background: hasUnlocked ? 'rgba(111,234,141,0.15)' : 'rgba(255,255,255,0.06)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontFamily: 'monospace', fontSize: 13, fontWeight: 700,
+                        color: hasUnlocked ? '#6fea8d' : '#888',
+                      }}>
+                        {tId}
+                      </span>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 600 }}>팀 {tId}</div>
+                        <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
+                          👥 {memberCount}명 접속
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      {hasUnlocked ? (
+                        <span style={{ fontSize: 12, color: '#6fea8d', fontWeight: 600 }}>
+                          ✓ 해금 (장소 {team?.unlockedLocation})
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: 12, color: '#888' }}>탐색 중</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
 
-        {/* Team Progress */}
-        <div style={{
-          padding: '18px',
-          background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)',
-          borderRadius: '14px',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase' as const, letterSpacing: '0.1em', fontWeight: '600' }}>
-              팀별 진행 현황
-            </span>
-            <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)' }}>각 팀 5개 장소</span>
+        {/* 비활성 라운드 팀 */}
+        <div>
+          <div style={{ fontSize: 11, color: '#666', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 10 }}>
+            {currentRound === 1 ? '라운드 2 팀 (대기)' : '라운드 1 팀'}
           </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {TEAMS.map((team) => {
-              const teamLocs = getTeamLocations(team.teamId)
-              const positions = allPositions[team.teamId] || []
-              const teamState = gameState?.teams[team.teamId]
-              const foundCount = teamState?.unlockedLocation ? 1 : 0
-
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {(currentRound === 1 ? [6, 7, 8, 9, 10] : [1, 2, 3, 4, 5]).map((tId) => {
+              const team = gameState?.teams[tId]
+              const memberCount = team ? Object.keys(team.members).length : 0
               return (
-                <div key={team.teamId} style={{
-                  padding: '14px 16px',
-                  background: 'rgba(255,255,255,0.02)',
-                  border: '1px solid rgba(255,255,255,0.04)',
-                  borderRadius: '10px',
-                  transition: 'all 0.3s',
+                <div key={tId} style={{
+                  padding: '6px 12px', borderRadius: 6, fontSize: 12,
+                  background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.04)',
+                  color: '#666',
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{
-                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                        width: '28px', height: '28px', borderRadius: '8px',
-                        background: foundCount > 0 ? 'rgba(100,255,150,0.15)' : 'rgba(255,255,255,0.06)',
-                        fontSize: '12px', fontWeight: '700', fontFamily: 'monospace',
-                        color: foundCount > 0 ? '#6fea8d' : 'rgba(255,255,255,0.4)',
-                      }}>
-                        {team.teamId}
-                      </span>
-                      <div>
-                        <span style={{ fontSize: '14px', fontWeight: '600', color: 'rgba(255,255,255,0.8)' }}>팀 {team.teamId}</span>
-                        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.25)', marginLeft: '8px' }}>{positions.length}명</span>
-                      </div>
-                    </div>
-                    <div style={{ fontSize: '16px', fontWeight: '700', fontFamily: 'monospace', color: foundCount > 0 ? '#6fea8d' : 'rgba(255,255,255,0.2)' }}>
-                      {foundCount}<span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '13px' }}>/5</span>
-                    </div>
-                  </div>
-
-                  {/* Mini progress */}
-                  <div style={{ height: '2px', background: 'rgba(255,255,255,0.04)', borderRadius: '1px', overflow: 'hidden' }}>
-                    <motion.div
-                      style={{
-                        height: '100%', borderRadius: '1px',
-                        background: foundCount > 0 ? 'linear-gradient(90deg, #6fea8d, #4ecdc4)' : 'transparent',
-                      }}
-                      initial={{ width: 0 }}
-                      animate={{ width: `${(foundCount / 5) * 100}%` }}
-                      transition={{ duration: 0.5 }}
-                    />
-                  </div>
-
-                  {/* Location names */}
-                  <div style={{ display: 'flex', gap: '6px', marginTop: '8px', flexWrap: 'wrap' as const }}>
-                    {teamLocs.map((loc, idx) => (
-                      <span key={loc.id} style={{
-                        fontSize: '10px', padding: '2px 8px', borderRadius: '4px',
-                        background: idx < foundCount ? 'rgba(100,255,150,0.1)' : 'rgba(255,255,255,0.03)',
-                        color: idx < foundCount ? '#6fea8d' : 'rgba(255,255,255,0.25)',
-                        border: `1px solid ${idx < foundCount ? 'rgba(100,255,150,0.15)' : 'rgba(255,255,255,0.04)'}`,
-                      }}>
-                        {loc.name.slice(0, 4)}
-                      </span>
-                    ))}
-                  </div>
+                  팀{tId} · {memberCount}명
                 </div>
               )
             })}

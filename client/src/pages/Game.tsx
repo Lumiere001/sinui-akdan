@@ -99,7 +99,7 @@ export function Game() {
         setUnlocked(true)
         setScorePhoto(data.photo)
         setWrongGuess(null)
-        navigate('/result/correct', { state: { photoUrl: data.photo } })
+        navigate('/result/correct', { state: { photoUrl: `/${data.photo}` } })
       }
     })
 
@@ -107,7 +107,7 @@ export function Game() {
     socket.on('team:wrong', (data) => {
       if (data.teamId === teamId) {
         setWrongGuess(data.locationId)
-        setTimeout(() => setWrongGuess(null), 3000)
+        navigate('/result/wrong', { state: { photoUrl: data.photo ? `/${data.photo}` : undefined } })
       }
     })
 

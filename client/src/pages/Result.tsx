@@ -37,13 +37,13 @@ export function Result() {
       </p>
 
       {/* 악보 사진 */}
-      {isCorrect && state?.photoUrl && (
+      {state?.photoUrl && (
         <div style={{
           width: '100%', maxWidth: 320, aspectRatio: '4/3', borderRadius: 12,
           overflow: 'hidden', marginBottom: 24,
-          border: '1px solid rgba(111,234,141,0.2)',
+          border: `1px solid ${isCorrect ? 'rgba(111,234,141,0.2)' : 'rgba(239,68,68,0.2)'}`,
         }}>
-          <img src={state.photoUrl} alt="악보 조각" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <img src={state.photoUrl} alt={isCorrect ? '악보 조각' : '오답'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
       )}
 

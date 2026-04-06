@@ -57,7 +57,7 @@ export interface ServerToClientEvents {
   'game:started': (data: { round: number; startTime: number }) => void;
   'game:stopped': () => void;
   'team:unlock': (data: { teamId: number; locationId: string; photo: string }) => void;
-  'team:wrong': (data: { teamId: number; locationId: string }) => void;
+  'team:wrong': (data: { teamId: number; locationId: string; photo?: string }) => void;
   'team:memberCount': (data: { locationId: string; count: number; needed: number }) => void;
   'team:positions': (positions: PlayerPosition[]) => void;
   'admin:allPositions': (data: Record<number, PlayerPosition[]>) => void;

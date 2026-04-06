@@ -319,6 +319,7 @@ io.on('connection', (socket) => {
         io.to(teamRoom).emit('team:wrong', {
           teamId,
           locationId,
+          photo: teamConfig.wrongPhoto,
         });
       }
     } catch (error) {

@@ -149,7 +149,7 @@ const ROUND_2_TEAMS: Record<number, TeamConfig> = {
     correctLocation: '6',
     hint: HINTS['6'],
     correctPhoto: 'score_17.jpg',
-    wrongPhoto: 'score_17.jpg',
+    wrongPhoto: 'wrong_17.jpg',
   },
   8: {
     teamId: 8,

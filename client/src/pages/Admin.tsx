@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSocket } from '../hooks/useSocket'
 import type { GameState, ChatMessage } from '../../../shared/types'
 

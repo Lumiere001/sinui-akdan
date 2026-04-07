@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Landing } from './pages/Landing'
+import { Pledge } from './pages/Pledge'
 import { Game } from './pages/Game'
-import { Result } from './pages/Result'
 import { Admin } from './pages/Admin'
 
 function App() {
@@ -9,8 +9,8 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Landing />} />
+        <Route path="/pledge" element={<Pledge />} />
         <Route path="/game" element={<Game />} />
-        <Route path="/result/:type" element={<Result />} />
         <Route path="/admin" element={<Admin />} />
       </Routes>
     </BrowserRouter>

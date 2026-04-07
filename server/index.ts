@@ -5,12 +5,12 @@ import cors from 'cors';
 import { adminRouter } from './adminRoutes.js';
 import { gameStateManager } from './gameState.js';
 import { checkProximity, checkTeamPresence, isValidLocation } from './gpsCheck.js';
-import { getTeamConfig, getLocation, getAllLocations } from './gameData.js';
+import { getTeamRoute, getLocation, getAllLocations, getTeamRound } from './gameData.js';
 import type {
   ClientToServerEvents,
   ServerToClientEvents,
   PlayerPosition,
-} from './shared/types';
+} from './shared/types.js';
 
 // ========== Configuration ==========
 const PORT = parseInt(process.env.PORT || '3001', 10);
@@ -23,6 +23,7 @@ const TEAM_PASSWORDS: Record<number, string> = {
   1: '1111', 2: '2222', 3: '3333', 4: '4444', 5: '5555',
   6: '6666', 7: '7777', 8: '8888', 9: '9999', 10: '0000',
 };
+
 // ========== Express App Setup ==========
 const app = express();
 const server = createServer(app);
@@ -53,22 +54,30 @@ const io = new SocketIOServer<ClientToServerEvents, ServerToClientEvents>(server
 });
 
 /**
- * Broadcast game state to all connected clients (admin + all teams)
+ * Broadcast game state to all connected clients
  */
 function broadcastGameState(): void {
   const state = gameStateManager.getState();
-  io.to('admin').emit('game:state', state);
-  // 모든 팀 룸에도 게임 상태 전송
-  for (let t = 1; t <= 10; t++) {
-    io.to(`team:${t}`).emit('game:state', state);
-  }
+  io.emit('game:state', state);
 }
 
 /**
- * Track team members and their positions for admin monitoring
- * Maps team members to their teams
+ * Track team members and their positions
  */
-const teamConnections = new Map<string, { teamId: number; playerId: string }>();
+const teamConnections = new Map<string, { teamId: number; playerId: string; playerName: string }>();
+
+/**
+ * Timer check interval - check every 1 second if any team timers have expired
+ */
+const timerCheckInterval = setInterval(() => {
+  for (let teamId = 1; teamId <= 10; teamId++) {
+    if (gameStateManager.isTeamTimerExpired(teamId)) {
+      gameStateManager.expireTeamTimer(teamId);
+      io.to(`team:${teamId}`).emit('team:timerExpired', { teamId });
+      console.log(`[Timer] Team ${teamId} timer expired`);
+    }
+  }
+}, 1000);
 
 // ========== Socket.io Connection Handler ==========
 io.on('connection', (socket) => {
@@ -79,29 +88,14 @@ io.on('connection', (socket) => {
   /**
    * Player joins their team room
    * Event: player:join
-   * Data: { teamId: number, playerId: string }
+   * Data: { teamId, playerId, playerName, password, isRepresentative }
    */
-  /**
-   * Admin joins the admin room
-   * Event: admin:join
-   */
-  socket.on('admin:join', (password?: string) => {
-    if (password !== ADMIN_PASSWORD) {
-      socket.emit('error', { message: 'Invalid admin password' });
-      return;
-    }
-    socket.join('admin');
-    console.log(`[Admin] Admin client joined (${socket.id})`);
-    // 즉시 현재 게임 상태 전송
-    socket.emit('game:state', gameStateManager.getState());
-  });
-
   socket.on('player:join', (data) => {
-    const { teamId, playerId, password } = data;
+    const { teamId, playerId, playerName, password, isRepresentative } = data;
 
     try {
-      if (!teamId || !playerId) {
-        socket.emit('error', { message: 'Missing teamId or playerId' });
+      if (!teamId || !playerId || !playerName) {
+        socket.emit('error', { message: 'Missing required fields' });
         return;
       }
 
@@ -118,22 +112,50 @@ io.on('connection', (socket) => {
       }
 
       // Track this connection
-      teamConnections.set(socket.id, { teamId, playerId });
+      teamConnections.set(socket.id, { teamId, playerId, playerName });
 
       // Add player to team in game state
       gameStateManager.addPlayerToTeam(teamId, playerId);
+
+      // Set representative if requested
+      if (isRepresentative) {
+        gameStateManager.setRepresentative(teamId, playerId);
+      }
 
       // Join team-specific room
       const teamRoom = `team:${teamId}`;
       socket.join(teamRoom);
 
-      console.log(`[Team ${teamId}] Player ${playerId} joined (${socket.id})`);
+      console.log(`[Team ${teamId}] Player ${playerId} (${playerName}) joined (${socket.id})`);
 
-      // Send current game state to this player
+      // Send current game state
       socket.emit('game:state', gameStateManager.getState());
+
+      // Send pledge status
+      socket.emit('pledge:status', {
+        playerId,
+        hasPledge: gameStateManager.hasPledge(playerId),
+      });
+
+      // Send chat history for this team
+      const chatHistory = gameStateManager.getChatHistory(teamId);
+      socket.emit('chat:history', chatHistory);
+
+      // Send representative status
+      const rep = gameStateManager.getRepresentative(teamId);
+      socket.emit('representative:status', {
+        teamId,
+        representativeId: rep,
+        representativeName: rep ? teamConnections.get(rep)?.playerName || null : null,
+      });
 
       // Notify team members about new join
       io.to(teamRoom).emit('team:positions', gameStateManager.getTeamMembers(teamId));
+      io.to(teamRoom).emit('team:memberCount', {
+        locationId: '',
+        count: gameStateManager.getTeamMembers(teamId).length,
+        needed: 3,
+      });
 
       // Broadcast to admin
       broadcastGameState();
@@ -148,7 +170,7 @@ io.on('connection', (socket) => {
   /**
    * Player updates their position
    * Event: player:position
-   * Data: PlayerPosition { playerId, teamId, lat, lng, timestamp }
+   * Data: PlayerPosition
    */
   socket.on('player:position', (data: PlayerPosition) => {
     try {
@@ -161,27 +183,33 @@ io.on('connection', (socket) => {
       const teamRoom = `team:${teamId}`;
       io.to(teamRoom).emit('team:positions', gameStateManager.getTeamMembers(teamId));
 
-      // Calculate and broadcast nearby member count for each visible location
-      const state = gameStateManager.getState();
-      if (state.isActive) {
-        const teamConfig = getTeamConfig(state.currentRound, teamId);
-        if (teamConfig) {
-          // Check presence at player's nearest location
-          const teamMembers = gameStateManager.getTeamMembers(teamId);
-          for (const loc of getAllLocations()) {
-            const presenceResult = checkTeamPresence(teamId, loc.id, gameStateManager);
-            if (presenceResult.count > 0) {
-              io.to(teamRoom).emit('team:memberCount', {
-                locationId: loc.id,
-                count: presenceResult.count,
-                needed: presenceResult.needed,
-              });
-            }
+      // Check and broadcast member counts at visible locations
+      const teamState = gameStateManager.getTeamState(teamId);
+      if (teamState && teamState.currentStep > 0 && teamState.currentStep <= 3) {
+        const teamRoute = getTeamRoute(teamId);
+        if (teamRoute) {
+          const currentStepRoute = teamRoute.steps.find((s) => s.stepNumber === teamState.currentStep);
+          if (currentStepRoute) {
+            // Check member count at correct location
+            const correctPresence = checkTeamPresence(teamId, currentStepRoute.correctLocation, gameStateManager);
+            io.to(teamRoom).emit('team:memberCount', {
+              locationId: currentStepRoute.correctLocation,
+              count: correctPresence.count,
+              needed: correctPresence.needed,
+            });
+
+            // Check member count at wrong location
+            const wrongPresence = checkTeamPresence(teamId, currentStepRoute.wrongLocation, gameStateManager);
+            io.to(teamRoom).emit('team:memberCount', {
+              locationId: currentStepRoute.wrongLocation,
+              count: wrongPresence.count,
+              needed: wrongPresence.needed,
+            });
           }
         }
       }
 
-      // Broadcast to admin monitoring
+      // Broadcast to admin
       const allTeamsData: Record<number, PlayerPosition[]> = {};
       for (let t = 1; t <= 10; t++) {
         allTeamsData[t] = gameStateManager.getTeamMembers(t);
@@ -197,9 +225,8 @@ io.on('connection', (socket) => {
 
   /**
    * Player checks if they're at the correct location
-   * Runs GPS proximity check and verifies team presence
    * Event: player:checkLocation
-   * Data: { locationId: string }
+   * Data: { locationId }
    */
   socket.on('player:checkLocation', (data) => {
     try {
@@ -219,33 +246,42 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Check if game is active
-      const state = gameStateManager.getState();
-      if (!state.isActive) {
-        socket.emit('error', { message: 'Game is not active' });
+      // Get team state
+      const teamState = gameStateManager.getTeamState(teamId);
+      if (!teamState) {
+        socket.emit('error', { message: 'Team not found' });
         return;
       }
 
-      // Check if team has already unlocked a location in this round
-      if (gameStateManager.hasTeamUnlockedLocation(teamId)) {
-        socket.emit('team:wrong', {
-          teamId,
-          locationId,
-        });
+      // Check if team has active timer
+      if (!teamState.isTimerActive) {
+        socket.emit('error', { message: 'Team timer is not active' });
         return;
       }
 
-      // Get team's correct location for this round
-      const teamConfig = getTeamConfig(state.currentRound, teamId);
-      if (!teamConfig) {
-        socket.emit('error', { message: 'Team config not found' });
+      // Check if team is already complete
+      if (teamState.isComplete) {
+        socket.emit('error', { message: 'Team already completed all steps' });
+        return;
+      }
+
+      // Get current step route
+      const teamRoute = getTeamRoute(teamId);
+      if (!teamRoute) {
+        socket.emit('error', { message: 'Team route not found' });
+        return;
+      }
+
+      const currentStepRoute = teamRoute.steps.find((s) => s.stepNumber === teamState.currentStep);
+      if (!currentStepRoute) {
+        socket.emit('error', { message: 'Current step not found' });
         return;
       }
 
       // Check team presence at location
       const presenceResult = checkTeamPresence(teamId, locationId, gameStateManager);
 
-      // Broadcast member count to team (even if insufficient)
+      // Broadcast member count to team
       const teamRoom = `team:${teamId}`;
       io.to(teamRoom).emit('team:memberCount', {
         locationId,
@@ -276,6 +312,7 @@ io.on('connection', (socket) => {
         socket.emit('error', { message: 'Location not found' });
         return;
       }
+
       const proximity = checkProximity(player, location);
 
       // Proximity check must be 'inside' to proceed
@@ -286,40 +323,61 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Check if location is correct for this team
-      const isCorrect = locationId === teamConfig.correctLocation;
+      // Check if location is correct for this step
+      const isCorrect = locationId === currentStepRoute.correctLocation;
 
       if (isCorrect) {
-        // Double-check unlock status to prevent race condition
-        if (gameStateManager.hasTeamUnlockedLocation(teamId)) {
-          return;
-        }
         // Correct location found!
-        gameStateManager.unlockLocation(teamId, locationId, teamConfig.correctPhoto);
-
         console.log(
-          `[Team ${teamId}] Unlocked correct location ${locationId} - Photo: ${teamConfig.correctPhoto}`,
+          `[Team ${teamId}] Step ${teamState.currentStep} completed - Location ${locationId}`,
         );
 
-        // Broadcast unlock to team
-        io.to(teamRoom).emit('team:unlock', {
+        // Broadcast step completion
+        io.to(teamRoom).emit('team:stepComplete', {
           teamId,
-          locationId,
-          photo: teamConfig.correctPhoto,
+          stepNumber: teamState.currentStep,
+          photo: currentStepRoute.correctPhoto,
         });
+
+        // Advance to next step or mark complete
+        gameStateManager.advanceStep(teamId);
+
+        // Check if team completed all steps
+        const updatedTeamState = gameStateManager.getTeamState(teamId);
+        if (updatedTeamState?.isComplete) {
+          io.to(teamRoom).emit('team:complete', {
+            teamId,
+            photo: teamRoute.finalPhoto,
+          });
+          console.log(`[Team ${teamId}] Completed all steps!`);
+        } else {
+          // Send new step hint
+          const nextStep = teamRoute.steps.find((s) => s.stepNumber === updatedTeamState?.currentStep);
+          if (nextStep) {
+            io.to(teamRoom).emit('team:stageUpdate', {
+              teamId,
+              currentStep: updatedTeamState?.currentStep || 0,
+              hint: nextStep.hint,
+              locations: {
+                correctId: nextStep.correctLocation,
+                wrongId: nextStep.wrongLocation,
+              },
+            });
+          }
+        }
 
         // Broadcast to admin
         broadcastGameState();
       } else {
         // Wrong location
         console.log(
-          `[Team ${teamId}] Wrong location ${locationId} (correct: ${teamConfig.correctLocation})`,
+          `[Team ${teamId}] Wrong location ${locationId} (correct: ${currentStepRoute.correctLocation})`,
         );
 
         io.to(teamRoom).emit('team:wrong', {
           teamId,
           locationId,
-          photo: teamConfig.wrongPhoto,
+          photo: currentStepRoute.wrongPhoto,
         });
       }
     } catch (error) {
@@ -330,22 +388,143 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ========== Pledge Events ==========
+
+  /**
+   * Player submits pledge
+   * Event: pledge:submit
+   * Data: { playerId, teamId }
+   */
+  socket.on('pledge:submit', (data) => {
+    try {
+      const { playerId, teamId } = data;
+
+      gameStateManager.addPledge(playerId, teamId);
+
+      socket.emit('pledge:status', {
+        playerId,
+        hasPledge: true,
+      });
+
+      io.to('admin').emit('pledge:status', {
+        playerId,
+        hasPledge: true,
+      });
+
+      console.log(`[Pledge] Player ${playerId} submitted pledge for team ${teamId}`);
+      broadcastGameState();
+    } catch (error) {
+      console.error('[Error] pledge:submit:', error);
+      socket.emit('error', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  });
+
+  /**
+   * Check pledge status
+   * Event: pledge:check
+   * Data: { playerId }
+   */
+  socket.on('pledge:check', (data) => {
+    try {
+      const { playerId } = data;
+      const hasPledge = gameStateManager.hasPledge(playerId);
+
+      socket.emit('pledge:status', {
+        playerId,
+        hasPledge,
+      });
+    } catch (error) {
+      console.error('[Error] pledge:check:', error);
+      socket.emit('error', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  });
+
+  // ========== Chat Events ==========
+
+  /**
+   * Send chat message (only team representative)
+   * Event: chat:send
+   * Data: { teamId, message }
+   */
+  socket.on('chat:send', (data) => {
+    try {
+      const { teamId, message } = data;
+      const connection = teamConnections.get(socket.id);
+
+      if (!connection) {
+        socket.emit('error', { message: 'Not in a team' });
+        return;
+      }
+
+      // Only representative can send messages
+      const representative = gameStateManager.getRepresentative(teamId);
+      if (representative !== connection.playerId) {
+        socket.emit('error', { message: 'Only team representative can send messages' });
+        return;
+      }
+
+      // Add message to chat
+      const chatMessage = gameStateManager.addChatMessage(
+        teamId,
+        connection.playerId,
+        connection.playerName,
+        message,
+        false,
+      );
+
+      // Broadcast to team room and admin
+      io.to(`team:${teamId}`).emit('chat:message', chatMessage);
+      io.to('admin').emit('chat:message', chatMessage);
+
+      console.log(`[Chat] Team ${teamId} - ${connection.playerName}: ${message}`);
+    } catch (error) {
+      console.error('[Error] chat:send:', error);
+      socket.emit('error', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  });
+
   // ========== Admin Events ==========
 
   /**
-   * Admin starts a round
+   * Admin joins the admin room
+   * Event: admin:join
+   * Data: password
    */
-  socket.on('admin:startRound', (round: number) => {
+  socket.on('admin:join', (password: string) => {
     try {
-      if (round !== 1 && round !== 2) {
-        socket.emit('error', { message: 'Round must be 1 or 2' });
+      if (password !== ADMIN_PASSWORD) {
+        socket.emit('error', { message: 'Invalid admin password' });
         return;
       }
-      gameStateManager.startRound(round as 1 | 2);
-      broadcastGameState();
-      console.log(`[Admin] Round ${round} started`);
+
+      socket.join('admin');
+      console.log(`[Admin] Admin client joined (${socket.id})`);
+
+      // Send current game state
+      socket.emit('game:state', gameStateManager.getState());
+
+      // Send all positions
+      const allTeamsData: Record<number, PlayerPosition[]> = {};
+      for (let t = 1; t <= 10; t++) {
+        allTeamsData[t] = gameStateManager.getTeamMembers(t);
+      }
+      socket.emit('admin:allPositions', allTeamsData);
+
+      // Send all chat histories
+      for (let t = 1; t <= 10; t++) {
+        const chatHistory = gameStateManager.getChatHistory(t);
+        if (chatHistory.length > 0) {
+          socket.emit('chat:history', chatHistory);
+        }
+      }
     } catch (error) {
-      console.error('[Error] admin:startRound:', error);
+      console.error('[Error] admin:join:', error);
       socket.emit('error', {
         message: error instanceof Error ? error.message : 'Unknown error',
       });
@@ -353,15 +532,44 @@ io.on('connection', (socket) => {
   });
 
   /**
-   * Admin stops current round
+   * Admin starts timer for a team
+   * Event: admin:startTimer
+   * Data: teamId
    */
-  socket.on('admin:stopRound', () => {
+  socket.on('admin:startTimer', (teamId: number) => {
     try {
-      gameStateManager.stopRound();
+      if (teamId < 1 || teamId > 10) {
+        socket.emit('error', { message: 'Invalid team ID' });
+        return;
+      }
+
+      gameStateManager.startTeamTimer(teamId);
+
+      // Get team route and send initial step
+      const teamRoute = getTeamRoute(teamId);
+      if (teamRoute) {
+        const firstStep = teamRoute.steps[0];
+        io.to(`team:${teamId}`).emit('team:stageUpdate', {
+          teamId,
+          currentStep: 1,
+          hint: firstStep.hint,
+          locations: {
+            correctId: firstStep.correctLocation,
+            wrongId: firstStep.wrongLocation,
+          },
+        });
+      }
+
+      // Broadcast timer start
+      io.to(`team:${teamId}`).emit('team:timerStart', {
+        teamId,
+        duration: 30 * 60 * 1000,
+      });
+
+      console.log(`[Admin] Started timer for team ${teamId}`);
       broadcastGameState();
-      console.log('[Admin] Round stopped');
     } catch (error) {
-      console.error('[Error] admin:stopRound:', error);
+      console.error('[Error] admin:startTimer:', error);
       socket.emit('error', {
         message: error instanceof Error ? error.message : 'Unknown error',
       });
@@ -369,12 +577,50 @@ io.on('connection', (socket) => {
   });
 
   /**
-   * Admin resets game
+   * Admin stops timer for a team
+   * Event: admin:stopTimer
+   * Data: teamId
+   */
+  socket.on('admin:stopTimer', (teamId: number) => {
+    try {
+      if (teamId < 1 || teamId > 10) {
+        socket.emit('error', { message: 'Invalid team ID' });
+        return;
+      }
+
+      gameStateManager.stopTeamTimer(teamId);
+
+      console.log(`[Admin] Stopped timer for team ${teamId}`);
+      broadcastGameState();
+    } catch (error) {
+      console.error('[Error] admin:stopTimer:', error);
+      socket.emit('error', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  });
+
+  /**
+   * Admin resets the entire game
+   * Event: admin:resetGame
    */
   socket.on('admin:resetGame', () => {
     try {
       gameStateManager.resetGame();
-      broadcastGameState();
+
+      // Clear team connections
+      const socketsToDisconnect: string[] = [];
+      teamConnections.forEach((value, key) => {
+        socketsToDisconnect.push(key);
+      });
+
+      for (const socketId of socketsToDisconnect) {
+        teamConnections.delete(socketId);
+      }
+
+      // Broadcast reset to all
+      io.emit('game:state', gameStateManager.getState());
+
       console.log('[Admin] Game reset');
     } catch (error) {
       console.error('[Error] admin:resetGame:', error);
@@ -407,12 +653,21 @@ io.on('connection', (socket) => {
 // ========== Server Startup ==========
 server.listen(PORT, () => {
   console.log(`========================================`);
-  console.log(`신의 악단 (God's Orchestra) Server`);
+  console.log(`신의 악단 (God's Orchestra) V2 Server`);
   console.log(`========================================`);
   console.log(`Server running on http://localhost:${PORT}`);
   console.log(`Admin API: http://localhost:${PORT}/api/admin`);
   console.log(`Socket.io: ws://localhost:${PORT}`);
   console.log(`========================================`);
+});
+
+// Cleanup on shutdown
+process.on('SIGINT', () => {
+  clearInterval(timerCheckInterval);
+  server.close(() => {
+    console.log('Server shut down');
+    process.exit(0);
+  });
 });
 
 export { app, server, io };

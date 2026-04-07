@@ -1,44 +1,20 @@
-import type { GameState, PlayerPosition, TeamState } from './shared/types.js';
+import { loadGameState, saveGameState, debouncedSaveGameState, resetDataFile } from './persistence.js';
+import type { GameState, TeamState, PlayerPosition, PledgeRecord, ChatMessage } from './shared/types.js';
 
 /**
- * Game state management - maintains in-memory state of the current game
- * Handles round progression, team tracking, and position updates
+ * Game state management for V2
+ * - Per-team timers (30 minutes each)
+ * - Multi-step routes (3 steps per team)
+ * - Pledge system
+ * - Chat system
+ * - JSON persistence
  */
 class GameStateManager {
   private state: GameState;
-  private roundDuration: number = 30 * 60 * 1000; // 30 minutes in milliseconds
 
   constructor() {
-    this.state = this.createInitialState();
-  }
-
-  /**
-   * Create initial game state
-   */
-  private createInitialState(): GameState {
-    return {
-      currentRound: 1,
-      isActive: false,
-      startTime: null,
-      duration: this.roundDuration,
-      teams: this.initializeTeams(),
-    };
-  }
-
-  /**
-   * Initialize team state objects for all 10 teams
-   */
-  private initializeTeams(): Record<number, TeamState> {
-    const teams: Record<number, TeamState> = {};
-    for (let i = 1; i <= 10; i++) {
-      teams[i] = {
-        teamId: i,
-        members: {},
-        unlockedLocation: null,
-        scorePhoto: null,
-      };
-    }
-    return teams;
+    this.state = loadGameState();
+    console.log('Game state loaded from persistence');
   }
 
   /**
@@ -49,64 +25,229 @@ class GameStateManager {
   }
 
   /**
-   * Start a specific round
-   * @param roundNumber - 1 or 2
+   * Save state to persistence
    */
-  startRound(roundNumber: 1 | 2): void {
-    if (roundNumber !== 1 && roundNumber !== 2) {
-      throw new Error('Round must be 1 or 2');
-    }
-
-    this.state.currentRound = roundNumber;
-    this.state.isActive = true;
-    this.state.startTime = Date.now();
-    this.resetTeamProgress();
+  private saveState(): void {
+    debouncedSaveGameState(this.state);
   }
 
-  /**
-   * Stop the current round
-   */
-  stopRound(): void {
-    this.state.isActive = false;
-    this.state.startTime = null;
-  }
+  // ========== Timer Management ==========
 
   /**
-   * Reset game to initial state
+   * Start individual team timer
    */
-  resetGame(): void {
-    this.state = this.createInitialState();
-  }
-
-  /**
-   * Reset team progress (unlocked locations, photos)
-   * Used when starting a new round
-   */
-  private resetTeamProgress(): void {
-    Object.keys(this.state.teams).forEach((teamIdStr) => {
-      const teamId = Number(teamIdStr) as keyof typeof this.state.teams;
-      this.state.teams[teamId].unlockedLocation = null;
-      this.state.teams[teamId].scorePhoto = null;
-    });
-  }
-
-  /**
-   * Get state for a specific team
-   */
-  getTeamState(teamId: number): TeamState {
+  startTeamTimer(teamId: number): void {
     const team = this.state.teams[teamId];
     if (!team) {
       throw new Error(`Team ${teamId} not found`);
     }
-    return JSON.parse(JSON.stringify(team));
+
+    team.timerStartTime = Date.now();
+    team.isTimerActive = true;
+    team.isTimerExpired = false;
+    team.currentStep = 1; // Start at step 1
+    team.completedSteps = [];
+
+    this.saveState();
   }
 
   /**
+   * Stop individual team timer
+   */
+  stopTeamTimer(teamId: number): void {
+    const team = this.state.teams[teamId];
+    if (!team) {
+      throw new Error(`Team ${teamId} not found`);
+    }
+
+    team.isTimerActive = false;
+    this.saveState();
+  }
+
+  /**
+   * Check if team timer has expired
+   */
+  isTeamTimerExpired(teamId: number): boolean {
+    const team = this.state.teams[teamId];
+    if (!team || !team.timerStartTime || !team.isTimerActive) {
+      return false;
+    }
+
+    const elapsed = Date.now() - team.timerStartTime;
+    return elapsed >= team.timerDuration;
+  }
+
+  /**
+   * Mark team timer as expired
+   */
+  expireTeamTimer(teamId: number): void {
+    const team = this.state.teams[teamId];
+    if (!team) {
+      throw new Error(`Team ${teamId} not found`);
+    }
+
+    team.isTimerActive = false;
+    team.isTimerExpired = true;
+    this.saveState();
+  }
+
+  /**
+   * Get timer info for a team
+   */
+  getTeamTimerInfo(teamId: number): { elapsed: number; remaining: number; isActive: boolean; isExpired: boolean } {
+    const team = this.state.teams[teamId];
+    if (!team || !team.timerStartTime) {
+      return { elapsed: 0, remaining: team?.timerDuration || 0, isActive: false, isExpired: false };
+    }
+
+    const elapsed = Date.now() - team.timerStartTime;
+    const remaining = Math.max(0, team.timerDuration - elapsed);
+
+    return {
+      elapsed,
+      remaining,
+      isActive: team.isTimerActive,
+      isExpired: team.isTimerExpired,
+    };
+  }
+
+  // ========== Step Management ==========
+
+  /**
+   * Advance team to next step
+   */
+  advanceStep(teamId: number): void {
+    const team = this.state.teams[teamId];
+    if (!team) {
+      throw new Error(`Team ${teamId} not found`);
+    }
+
+    if (!team.completedSteps.includes(team.currentStep)) {
+      team.completedSteps.push(team.currentStep);
+    }
+
+    if (team.currentStep < 3) {
+      team.currentStep += 1;
+    } else {
+      this.completeTeam(teamId);
+    }
+
+    this.saveState();
+  }
+
+  /**
+   * Mark team as complete
+   */
+  completeTeam(teamId: number): void {
+    const team = this.state.teams[teamId];
+    if (!team) {
+      throw new Error(`Team ${teamId} not found`);
+    }
+
+    team.isComplete = true;
+    team.currentStep = 4; // Mark as complete
+    team.isTimerActive = false;
+
+    this.saveState();
+  }
+
+  // ========== Pledge Management ==========
+
+  /**
+   * Add pledge record
+   */
+  addPledge(playerId: string, teamId: number): void {
+    const pledgeKey = playerId;
+    this.state.pledges[pledgeKey] = {
+      playerId,
+      teamId,
+      completedAt: Date.now(),
+    };
+
+    this.saveState();
+  }
+
+  /**
+   * Check if player has submitted pledge
+   */
+  hasPledge(playerId: string): boolean {
+    return playerId in this.state.pledges;
+  }
+
+  /**
+   * Get pledge record
+   */
+  getPledge(playerId: string): PledgeRecord | null {
+    return this.state.pledges[playerId] || null;
+  }
+
+  // ========== Chat Management ==========
+
+  /**
+   * Add chat message
+   */
+  addChatMessage(teamId: number, senderId: string, senderName: string, message: string, isAdmin: boolean): ChatMessage {
+    if (!this.state.chatMessages[teamId]) {
+      this.state.chatMessages[teamId] = [];
+    }
+
+    const chatMessage: ChatMessage = {
+      id: `${Date.now()}-${Math.random()}`,
+      teamId,
+      senderId,
+      senderName,
+      message,
+      timestamp: Date.now(),
+      isAdmin,
+    };
+
+    this.state.chatMessages[teamId].push(chatMessage);
+    this.saveState();
+
+    return chatMessage;
+  }
+
+  /**
+   * Get chat history for a team
+   */
+  getChatHistory(teamId: number): ChatMessage[] {
+    return this.state.chatMessages[teamId] || [];
+  }
+
+  /**
+   * Clear chat history for a team
+   */
+  clearChatHistory(teamId: number): void {
+    this.state.chatMessages[teamId] = [];
+    this.saveState();
+  }
+
+  // ========== Representative Management ==========
+
+  /**
+   * Set team representative
+   */
+  setRepresentative(teamId: number, playerId: string): void {
+    const team = this.state.teams[teamId];
+    if (!team) {
+      throw new Error(`Team ${teamId} not found`);
+    }
+
+    team.representative = playerId;
+    this.saveState();
+  }
+
+  /**
+   * Get team representative
+   */
+  getRepresentative(teamId: number): string | null {
+    return this.state.teams[teamId]?.representative || null;
+  }
+
+  // ========== Player Position Management ==========
+
+  /**
    * Update player position
-   * @param teamId - Team ID
-   * @param playerId - Player ID
-   * @param lat - Latitude
-   * @param lng - Longitude
    */
   updatePlayerPosition(teamId: number, playerId: string, lat: number, lng: number): void {
     const team = this.state.teams[teamId];
@@ -121,12 +262,12 @@ class GameStateManager {
       lng,
       timestamp: Date.now(),
     };
+
+    this.saveState();
   }
 
   /**
-   * Add a player to a team
-   * @param teamId - Team ID
-   * @param playerId - Player ID
+   * Add player to team
    */
   addPlayerToTeam(teamId: number, playerId: string): void {
     const team = this.state.teams[teamId];
@@ -142,25 +283,31 @@ class GameStateManager {
         lng: 0,
         timestamp: Date.now(),
       };
+      this.saveState();
     }
   }
 
   /**
-   * Remove a player from a team
-   * @param teamId - Team ID
-   * @param playerId - Player ID
+   * Remove player from team
    */
   removePlayerFromTeam(teamId: number, playerId: string): void {
     const team = this.state.teams[teamId];
     if (!team) {
-      throw new Error(`Team ${teamId} not found`);
+      return;
     }
 
     delete team.members[playerId];
+
+    // Clear representative if it was this player
+    if (team.representative === playerId) {
+      team.representative = null;
+    }
+
+    this.saveState();
   }
 
   /**
-   * Get all members of a team with their positions
+   * Get team members with positions
    */
   getTeamMembers(teamId: number): PlayerPosition[] {
     const team = this.state.teams[teamId];
@@ -172,39 +319,68 @@ class GameStateManager {
   }
 
   /**
-   * Set unlocked location for a team
-   * @param teamId - Team ID
-   * @param locationId - Location ID
-   * @param photoPath - Path to score photo
+   * Get team state
    */
-  unlockLocation(teamId: number, locationId: string, photoPath: string): void {
+  getTeamState(teamId: number): TeamState | null {
     const team = this.state.teams[teamId];
     if (!team) {
-      throw new Error(`Team ${teamId} not found`);
+      return null;
     }
 
-    team.unlockedLocation = locationId;
-    team.scorePhoto = photoPath;
+    return JSON.parse(JSON.stringify(team));
+  }
+
+  // ========== Game Reset ==========
+
+  /**
+   * Reset entire game
+   */
+  resetGame(): void {
+    const teams: Record<number, TeamState> = {};
+    for (let i = 1; i <= 10; i++) {
+      teams[i] = {
+        teamId: i,
+        members: {},
+        currentStep: 0,
+        completedSteps: [],
+        isComplete: false,
+        timerStartTime: null,
+        timerDuration: 30 * 60 * 1000,
+        isTimerActive: false,
+        isTimerExpired: false,
+        representative: null,
+      };
+    }
+
+    this.state = {
+      teams,
+      pledges: {},
+      chatMessages: {},
+    };
+
+    resetDataFile();
+    this.saveState();
   }
 
   /**
-   * Check if a team has already unlocked a location
+   * Reset a specific team
    */
-  hasTeamUnlockedLocation(teamId: number): boolean {
-    return this.state.teams[teamId]?.unlockedLocation !== null;
-  }
+  resetTeam(teamId: number): void {
+    const team = this.state.teams[teamId];
+    if (!team) {
+      return;
+    }
 
-  /**
-   * Get game timer information
-   */
-  getTimerInfo(): { elapsed: number; remaining: number; isActive: boolean } {
-    const elapsed = this.state.isActive && this.state.startTime
-      ? Date.now() - this.state.startTime
-      : 0;
-    const remaining = Math.max(0, this.state.duration - elapsed);
-    const isActive = this.state.isActive && remaining > 0;
+    team.members = {};
+    team.currentStep = 0;
+    team.completedSteps = [];
+    team.isComplete = false;
+    team.timerStartTime = null;
+    team.isTimerActive = false;
+    team.isTimerExpired = false;
+    team.representative = null;
 
-    return { elapsed, remaining, isActive };
+    this.saveState();
   }
 }
 

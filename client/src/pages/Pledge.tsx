@@ -23,7 +23,7 @@ export function Pledge() {
     }
   }, [teamId, playerId, playerName, navigate])
 
-  // Socket connection and join
+  // Join team (once)
   useEffect(() => {
     if (!socket || !teamId || joined) return
 
@@ -44,18 +44,27 @@ export function Pledge() {
 
     socket.on('connect', joinTeam)
 
-    // Check pledge status response
-    socket.on('pledge:status', (data) => {
+    return () => {
+      socket.off('connect', joinTeam)
+    }
+  }, [socket, isConnected, teamId, playerId, playerName, teamPassword, isRepresentative, joined])
+
+  // Listen for pledge status (always active)
+  useEffect(() => {
+    if (!socket) return
+
+    const handlePledgeStatus = (data: { playerId: string; hasPledge: boolean }) => {
       if (data.playerId === playerId && data.hasPledge) {
         navigate('/game')
       }
-    })
+    }
+
+    socket.on('pledge:status', handlePledgeStatus)
 
     return () => {
-      socket.off('connect', joinTeam)
-      socket.off('pledge:status')
+      socket.off('pledge:status', handlePledgeStatus)
     }
-  }, [socket, isConnected, teamId, playerId, playerName, teamPassword, isRepresentative, joined, navigate])
+  }, [socket, playerId, navigate])
 
   const handleSubmit = () => {
     if (!socket || !agreed) return

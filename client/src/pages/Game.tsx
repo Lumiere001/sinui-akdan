@@ -68,7 +68,7 @@ export function Game() {
     if (!teamId || !playerId) navigate('/')
   }, [teamId, playerId, navigate])
 
-  // Socket events
+  // Join team (once)
   useEffect(() => {
     if (!socket || !teamId || joined) return
 
@@ -83,8 +83,17 @@ export function Game() {
     if (isConnected) joinTeam()
     socket.on('connect', joinTeam)
 
+    return () => {
+      socket.off('connect', joinTeam)
+    }
+  }, [socket, isConnected, teamId, playerId, playerName, teamPassword, isRepresentative, joined])
+
+  // Listen for all game events (always active)
+  useEffect(() => {
+    if (!socket || !teamId) return
+
     // Pledge check - redirect if no pledge
-    socket.on('pledge:status', (data) => {
+    socket.on('pledge:status', (data: { playerId: string; hasPledge: boolean }) => {
       if (data.playerId === playerId && !data.hasPledge) {
         navigate('/pledge')
       }
@@ -160,7 +169,7 @@ export function Game() {
 
     // Team positions
     socket.on('team:positions', (positions) => {
-      setTeamMembers(positions.filter(p => p.playerId !== playerId))
+      setTeamMembers(positions.filter((p: PlayerPosition) => p.playerId !== playerId))
     })
 
     // Member count at locations
@@ -178,7 +187,6 @@ export function Game() {
     })
 
     return () => {
-      socket.off('connect', joinTeam)
       socket.off('pledge:status')
       socket.off('game:state')
       socket.off('team:stageUpdate')
@@ -191,7 +199,7 @@ export function Game() {
       socket.off('team:memberCount')
       socket.off('error')
     }
-  }, [socket, isConnected, teamId, playerId, playerName, teamPassword, isRepresentative, joined, navigate])
+  }, [socket, teamId, playerId, navigate])
 
   // Send GPS position to server
   useEffect(() => {

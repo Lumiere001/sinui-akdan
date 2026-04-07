@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSocket } from '../hooks/useSocket'
 import type { GameState, ChatMessage } from '../../../shared/types'
 
@@ -20,6 +20,7 @@ export function Admin() {
   const [selectedChatTeam, setSelectedChatTeam] = useState<number>(1)
   const [, setTick] = useState(0)
   const chatEndRef = useRef<HTMLDivElement>(null)
+  const chatInitialized = useRef(false)
 
   // Admin login
   function handleLogin() {
@@ -43,8 +44,10 @@ export function Admin() {
 
     socket.on('game:state', (state) => {
       setGameState(state)
-      if (state.chatMessages) {
+      // Only load chat from game:state on first connect (avoid overwriting live messages)
+      if (state.chatMessages && !chatInitialized.current) {
         setChatMessages(state.chatMessages)
+        chatInitialized.current = true
       }
     })
 
@@ -95,29 +98,8 @@ export function Admin() {
   }
   function sendChat() {
     if (!socket || !chatInput.trim()) return
-    // Admin sends as a chat message (the server needs to handle admin chat)
-    // For now, admin sends directly to team room
-    const msg: Omit<ChatMessage, 'id' | 'timestamp'> = {
-      teamId: selectedChatTeam,
-      senderId: 'admin',
-      senderName: '관리자',
-      message: chatInput.trim(),
-      isAdmin: true,
-    }
-    // Use the game state manager via socket
     socket.emit('chat:send', { teamId: selectedChatTeam, message: chatInput.trim() })
-    // Optimistically add
-    setChatMessages(prev => {
-      const teamMsgs = prev[selectedChatTeam] || []
-      return {
-        ...prev,
-        [selectedChatTeam]: [...teamMsgs, {
-          ...msg,
-          id: `admin-${Date.now()}`,
-          timestamp: Date.now(),
-        }],
-      }
-    })
+    // Server will echo back via chat:message — no optimistic add needed
     setChatInput('')
   }
 
@@ -371,7 +353,7 @@ export function Admin() {
             type="text" placeholder={`팀 ${selectedChatTeam}에게 메시지...`}
             value={chatInput}
             onChange={e => setChatInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && sendChat()}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) sendChat() }}
             style={{
               flex: 1, padding: '12px 14px', borderRadius: 8,
               background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',

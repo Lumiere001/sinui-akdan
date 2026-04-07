@@ -143,11 +143,42 @@ io.on('connection', (socket) => {
 
       // Send representative status
       const rep = gameStateManager.getRepresentative(teamId);
+      let repName: string | null = null;
+      if (rep) {
+        for (const conn of teamConnections.values()) {
+          if (conn.playerId === rep) { repName = conn.playerName; break; }
+        }
+      }
       socket.emit('representative:status', {
         teamId,
         representativeId: rep,
-        representativeName: rep ? teamConnections.get(rep)?.playerName || null : null,
+        representativeName: repName,
       });
+
+      // If team is mid-game, send current step info (for reconnection)
+      const teamState = gameStateManager.getTeamState(teamId);
+      if (teamState && teamState.currentStep > 0 && teamState.currentStep <= 3 && teamState.isTimerActive) {
+        const teamRoute = getTeamRoute(teamId);
+        if (teamRoute) {
+          const currentStepRoute = teamRoute.steps.find((s) => s.stepNumber === teamState.currentStep);
+          if (currentStepRoute) {
+            socket.emit('team:stageUpdate', {
+              teamId,
+              currentStep: teamState.currentStep,
+              hint: currentStepRoute.hint,
+              locations: {
+                correctId: currentStepRoute.correctLocation,
+                wrongId: currentStepRoute.wrongLocation,
+              },
+            });
+          }
+        }
+        // Also send timer info
+        socket.emit('team:timerStart', {
+          teamId,
+          duration: teamState.timerDuration,
+        });
+      }
 
       // Notify team members about new join
       io.to(teamRoom).emit('team:positions', gameStateManager.getTeamMembers(teamId));
@@ -446,41 +477,66 @@ io.on('connection', (socket) => {
   // ========== Chat Events ==========
 
   /**
-   * Send chat message (only team representative)
+   * Send chat message (team representative or admin)
    * Event: chat:send
    * Data: { teamId, message }
    */
   socket.on('chat:send', (data) => {
     try {
       const { teamId, message } = data;
-      const connection = teamConnections.get(socket.id);
 
-      if (!connection) {
-        socket.emit('error', { message: 'Not in a team' });
-        return;
+      // Check if sender is admin
+      const isAdmin = socket.rooms.has('admin');
+
+      if (isAdmin) {
+        // Admin sending message to a team
+        const chatMessage = gameStateManager.addChatMessage(
+          teamId,
+          'admin',
+          '관리자',
+          message,
+          true,
+        );
+
+        // Broadcast to team room and admin room
+        io.to(`team:${teamId}`).emit('chat:message', chatMessage);
+        io.to('admin').emit('chat:message', chatMessage);
+
+        console.log(`[Chat] Admin → Team ${teamId}: ${message}`);
+      } else {
+        // Team member sending
+        const connection = teamConnections.get(socket.id);
+
+        if (!connection) {
+          socket.emit('error', { message: 'Not in a team' });
+          return;
+        }
+
+        // Use connection's teamId (not from client data) for security
+        const senderTeamId = connection.teamId;
+
+        // Only representative can send messages
+        const representative = gameStateManager.getRepresentative(senderTeamId);
+        if (representative !== connection.playerId) {
+          socket.emit('error', { message: 'Only team representative can send messages' });
+          return;
+        }
+
+        // Add message to chat
+        const chatMessage = gameStateManager.addChatMessage(
+          senderTeamId,
+          connection.playerId,
+          connection.playerName,
+          message,
+          false,
+        );
+
+        // Broadcast to team room and admin
+        io.to(`team:${senderTeamId}`).emit('chat:message', chatMessage);
+        io.to('admin').emit('chat:message', chatMessage);
+
+        console.log(`[Chat] Team ${senderTeamId} - ${connection.playerName}: ${message}`);
       }
-
-      // Only representative can send messages
-      const representative = gameStateManager.getRepresentative(teamId);
-      if (representative !== connection.playerId) {
-        socket.emit('error', { message: 'Only team representative can send messages' });
-        return;
-      }
-
-      // Add message to chat
-      const chatMessage = gameStateManager.addChatMessage(
-        teamId,
-        connection.playerId,
-        connection.playerName,
-        message,
-        false,
-      );
-
-      // Broadcast to team room and admin
-      io.to(`team:${teamId}`).emit('chat:message', chatMessage);
-      io.to('admin').emit('chat:message', chatMessage);
-
-      console.log(`[Chat] Team ${teamId} - ${connection.playerName}: ${message}`);
     } catch (error) {
       console.error('[Error] chat:send:', error);
       socket.emit('error', {

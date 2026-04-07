@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGPS } from '../hooks/useGPS'
 import { useSocket } from '../hooks/useSocket'
@@ -10,7 +10,7 @@ import {
   getDirectionBearing,
   getTeamRound,
 } from '../data/gameData'
-import type { Location, PlayerPosition } from '../../../shared/types'
+import type { Location, PlayerPosition, ChatMessage } from '../../../shared/types'
 
 const DIRECTION_ARROWS = ['↑', '↗', '→', '↘', '↓', '↙', '←', '↖'] as const
 
@@ -60,6 +60,13 @@ export function Game() {
   const [showStepComplete, setShowStepComplete] = useState<{ stepNumber: number; photo: string } | null>(null)
   const [showWrong, setShowWrong] = useState<{ locationId: string; photo: string } | null>(null)
   const [showComplete, setShowComplete] = useState<{ photo: string } | null>(null)
+
+  // Chat (representative only)
+  const [chatOpen, setChatOpen] = useState(false)
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [chatInput, setChatInput] = useState('')
+  const [unreadCount, setUnreadCount] = useState(0)
+  const chatEndRef = useRef<HTMLDivElement>(null)
 
   const teamRound = getTeamRound(teamId)
 
@@ -180,6 +187,23 @@ export function Game() {
       }))
     })
 
+    // Chat messages (for representative)
+    socket.on('chat:message', (msg: ChatMessage) => {
+      if (msg.teamId === teamId) {
+        setChatMessages(prev => [...prev, msg])
+        // Increment unread if chat is closed and message is from admin
+        if (msg.isAdmin) {
+          setUnreadCount(prev => prev + 1)
+        }
+      }
+    })
+
+    socket.on('chat:history', (msgs: ChatMessage[]) => {
+      if (msgs.length > 0 && msgs[0].teamId === teamId) {
+        setChatMessages(msgs)
+      }
+    })
+
     // Error
     socket.on('error', (data) => {
       setErrorMsg(data.message)
@@ -197,18 +221,23 @@ export function Game() {
       socket.off('team:timerExpired')
       socket.off('team:positions')
       socket.off('team:memberCount')
+      socket.off('chat:message')
+      socket.off('chat:history')
       socket.off('error')
     }
   }, [socket, teamId, playerId, navigate])
 
-  // Send GPS position to server
+  // Send GPS position to server (throttled to 1/sec max)
   useEffect(() => {
     if (!socket || !position || !teamId) return
-    socket.emit('player:position', {
-      playerId, teamId,
-      lat: position.lat, lng: position.lng,
-      timestamp: Date.now(),
-    })
+    const timer = setTimeout(() => {
+      socket.emit('player:position', {
+        playerId, teamId,
+        lat: position.lat, lng: position.lng,
+        timestamp: Date.now(),
+      })
+    }, 1000)
+    return () => clearTimeout(timer)
   }, [socket, position, teamId, playerId])
 
   // Timer display
@@ -226,6 +255,23 @@ export function Game() {
     }, 1000)
     return () => clearInterval(interval)
   }, [isTimerActive, timerStartTime, timerDuration, isTimerExpired])
+
+  // Scroll chat to bottom
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [chatMessages])
+
+  // Clear unread when chat opens
+  useEffect(() => {
+    if (chatOpen) setUnreadCount(0)
+  }, [chatOpen])
+
+  // Send chat message
+  const sendChatMessage = useCallback(() => {
+    if (!socket || !chatInput.trim()) return
+    socket.emit('chat:send', { teamId, message: chatInput.trim() })
+    setChatInput('')
+  }, [socket, teamId, chatInput])
 
   // Check location handler
   const handleCheckLocation = useCallback((locationId: string) => {
@@ -534,6 +580,118 @@ export function Game() {
             다시 시도
           </button>
         </div>
+      )}
+
+      {/* Chat for representative */}
+      {isRepresentative && (
+        <>
+          {/* Floating chat button */}
+          {!chatOpen && (
+            <button
+              onClick={() => setChatOpen(true)}
+              style={{
+                position: 'fixed', bottom: 24, right: 24, zIndex: 70,
+                width: 56, height: 56, borderRadius: '50%',
+                background: '#3b82f6', color: '#fff', border: 'none',
+                fontSize: 24, cursor: 'pointer',
+                boxShadow: '0 4px 16px rgba(59,130,246,0.3)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              💬
+              {unreadCount > 0 && (
+                <span style={{
+                  position: 'absolute', top: -2, right: -2,
+                  background: '#ef4444', color: '#fff', fontSize: 11, fontWeight: 700,
+                  width: 20, height: 20, borderRadius: '50%',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* Chat panel */}
+          {chatOpen && (
+            <div style={{
+              position: 'fixed', bottom: 0, right: 0, left: 0, zIndex: 75,
+              height: '50vh', maxHeight: 400,
+              background: '#0a0a0f',
+              borderTop: '1px solid rgba(255,255,255,0.1)',
+              display: 'flex', flexDirection: 'column',
+              fontFamily: "'Noto Serif KR', serif",
+            }}>
+              {/* Chat header */}
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '10px 16px',
+                borderBottom: '1px solid rgba(255,255,255,0.06)',
+              }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: '#e0e0e0' }}>관리자 채팅</span>
+                <button
+                  onClick={() => setChatOpen(false)}
+                  style={{
+                    background: 'none', border: 'none', color: '#888',
+                    fontSize: 20, cursor: 'pointer', padding: '0 4px',
+                  }}
+                >✕</button>
+              </div>
+
+              {/* Messages */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '10px 16px' }}>
+                {chatMessages.length === 0 ? (
+                  <div style={{ textAlign: 'center', color: '#444', fontSize: 13, paddingTop: 30 }}>
+                    관리자에게 메시지를 보내보세요
+                  </div>
+                ) : (
+                  chatMessages.map((msg, i) => (
+                    <div key={msg.id || i} style={{
+                      marginBottom: 8,
+                      display: 'flex', flexDirection: 'column',
+                      alignItems: msg.isAdmin ? 'flex-start' : 'flex-end',
+                    }}>
+                      <div style={{ fontSize: 10, color: '#555', marginBottom: 2 }}>
+                        {msg.senderName} · {new Date(msg.timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                      <div style={{
+                        padding: '8px 12px', borderRadius: 8, maxWidth: '80%',
+                        background: msg.isAdmin ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.06)',
+                        fontSize: 13, lineHeight: 1.5, color: '#e0e0e0',
+                      }}>
+                        {msg.message}
+                      </div>
+                    </div>
+                  ))
+                )}
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* Input */}
+              <div style={{ display: 'flex', gap: 8, padding: '10px 16px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                <input
+                  type="text" placeholder="관리자에게 메시지..."
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) sendChatMessage() }}
+                  style={{
+                    flex: 1, padding: '10px 12px', borderRadius: 8,
+                    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                    color: '#e0e0e0', fontSize: 13, outline: 'none',
+                    fontFamily: "'Noto Serif KR', serif",
+                  }}
+                />
+                <button onClick={sendChatMessage} style={{
+                  padding: '10px 16px', borderRadius: 8,
+                  background: chatInput.trim() ? '#3b82f6' : 'rgba(255,255,255,0.04)',
+                  color: chatInput.trim() ? '#fff' : '#444',
+                  border: 'none', cursor: chatInput.trim() ? 'pointer' : 'not-allowed',
+                  fontSize: 13, fontWeight: 600, fontFamily: "'Noto Serif KR', serif",
+                }}>전송</button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Game Complete Overlay */}

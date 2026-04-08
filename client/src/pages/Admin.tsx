@@ -209,13 +209,18 @@ export function Admin() {
     setLastReadCounts(prev => ({ ...prev, [selectedChatTeam]: currentMsgs.length }))
   }, [chatMessages, selectedChatTeam])
 
-  // Unread counts
+  // Unread counts (only count participant messages, not admin)
   const unreadCounts = useMemo(() => {
     const counts: Record<number, number> = {}
-    for (let t = 1; t <= 10; t++) {
-      const total = chatMessages[t]?.length || 0
+    for (let t = 1; t <= 11; t++) {
+      const msgs = chatMessages[t] || []
       const lastRead = lastReadCounts[t] || 0
-      counts[t] = Math.max(0, total - lastRead)
+      // Count only non-admin messages after the last read position
+      let unread = 0
+      for (let i = lastRead; i < msgs.length; i++) {
+        if (!msgs[i].isAdmin) unread++
+      }
+      counts[t] = unread
     }
     return counts
   }, [chatMessages, lastReadCounts])
@@ -224,7 +229,7 @@ export function Admin() {
   const pledgeCounts = useMemo(() => {
     if (!gameState) return {} as Record<number, number>
     const counts: Record<number, number> = {}
-    for (let t = 1; t <= 10; t++) counts[t] = 0
+    for (let t = 1; t <= 11; t++) counts[t] = 0
     Object.values(gameState.pledges).forEach(p => {
       if (counts[p.teamId] !== undefined) counts[p.teamId]++
     })
@@ -407,10 +412,26 @@ export function Admin() {
 
             return (
               <div key={tId} style={{
-                padding: '12px', borderRadius: 10,
-                background: isDone ? 'rgba(111,234,141,0.06)' : isExpired ? 'rgba(239,68,68,0.06)' : 'rgba(255,255,255,0.03)',
-                border: `1px solid ${isDone ? 'rgba(111,234,141,0.2)' : isExpired ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.06)'}`,
+                padding: '12px', borderRadius: 10, position: 'relative',
+                background: teamUnread > 0
+                  ? 'rgba(59,130,246,0.04)'
+                  : isDone ? 'rgba(111,234,141,0.06)' : isExpired ? 'rgba(239,68,68,0.06)' : 'rgba(255,255,255,0.03)',
+                border: `1px solid ${teamUnread > 0
+                  ? 'rgba(59,130,246,0.3)'
+                  : isDone ? 'rgba(111,234,141,0.2)' : isExpired ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.06)'}`,
               }}>
+                {/* Unread indicator dot */}
+                {teamUnread > 0 && (
+                  <span style={{
+                    position: 'absolute', top: -4, right: -4,
+                    width: 20, height: 20, borderRadius: '50%',
+                    background: '#3b82f6', color: '#fff',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 10, fontWeight: 700,
+                    boxShadow: '0 0 8px rgba(59,130,246,0.5)',
+                  }}>{teamUnread}</span>
+                )}
+
                 {/* Team header row */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -423,9 +444,9 @@ export function Admin() {
                         팀 {tId}
                         {teamUnread > 0 && (
                           <span style={{
-                            background: '#3b82f6', color: '#fff', borderRadius: 8, padding: '0 5px',
-                            fontSize: 9, fontWeight: 700, lineHeight: '16px',
-                          }}>💬 {teamUnread}</span>
+                            background: '#3b82f6', color: '#fff', borderRadius: 8, padding: '1px 7px',
+                            fontSize: 10, fontWeight: 700, lineHeight: '16px',
+                          }}>💬 {teamUnread}개 안 읽음</span>
                         )}
                       </div>
                       <div style={{ fontSize: 10, color: '#666', display: 'flex', gap: 6 }}>

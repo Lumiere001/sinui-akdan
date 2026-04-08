@@ -63,6 +63,7 @@ export function Game() {
 
   // Chat (representative only)
   const [chatOpen, setChatOpen] = useState(false)
+  const chatOpenRef = useRef(false)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [chatInput, setChatInput] = useState('')
   const [unreadCount, setUnreadCount] = useState(0)
@@ -191,8 +192,8 @@ export function Game() {
     socket.on('chat:message', (msg: ChatMessage) => {
       if (msg.teamId === teamId) {
         setChatMessages(prev => [...prev, msg])
-        // Increment unread if chat is closed and message is from admin
-        if (msg.isAdmin) {
+        // Increment unread only if chat is closed and message is from admin
+        if (msg.isAdmin && !chatOpenRef.current) {
           setUnreadCount(prev => prev + 1)
         }
       }
@@ -261,8 +262,9 @@ export function Game() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chatMessages])
 
-  // Clear unread when chat opens
+  // Sync ref and clear unread when chat opens
   useEffect(() => {
+    chatOpenRef.current = chatOpen
     if (chatOpen) setUnreadCount(0)
   }, [chatOpen])
 

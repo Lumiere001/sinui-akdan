@@ -663,7 +663,7 @@ io.on('connection', (socket) => {
   });
 
   /**
-   * Admin stops timer for a team
+   * Admin stops timer for a team (full reset)
    * Event: admin:stopTimer
    * Data: teamId
    */
@@ -680,6 +680,58 @@ io.on('connection', (socket) => {
       broadcastGameState();
     } catch (error) {
       console.error('[Error] admin:stopTimer:', error);
+      socket.emit('error', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  });
+
+  /**
+   * Admin pauses timer for a team
+   * Event: admin:pauseTimer
+   * Data: teamId
+   */
+  socket.on('admin:pauseTimer', (teamId: number) => {
+    try {
+      if (teamId < 1 || teamId > 11) {
+        socket.emit('error', { message: 'Invalid team ID' });
+        return;
+      }
+
+      const remaining = gameStateManager.pauseTeamTimer(teamId);
+
+      io.to(`team:${teamId}`).emit('team:timerPaused', { teamId, remaining });
+
+      console.log(`[Admin] Paused timer for team ${teamId} (${Math.floor(remaining / 1000)}s remaining)`);
+      broadcastGameState();
+    } catch (error) {
+      console.error('[Error] admin:pauseTimer:', error);
+      socket.emit('error', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  });
+
+  /**
+   * Admin resumes timer for a team
+   * Event: admin:resumeTimer
+   * Data: teamId
+   */
+  socket.on('admin:resumeTimer', (teamId: number) => {
+    try {
+      if (teamId < 1 || teamId > 11) {
+        socket.emit('error', { message: 'Invalid team ID' });
+        return;
+      }
+
+      const remaining = gameStateManager.resumeTeamTimer(teamId);
+
+      io.to(`team:${teamId}`).emit('team:timerResumed', { teamId, duration: remaining });
+
+      console.log(`[Admin] Resumed timer for team ${teamId} (${Math.floor(remaining / 1000)}s remaining)`);
+      broadcastGameState();
+    } catch (error) {
+      console.error('[Error] admin:resumeTimer:', error);
       socket.emit('error', {
         message: error instanceof Error ? error.message : 'Unknown error',
       });

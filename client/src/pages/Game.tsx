@@ -46,6 +46,7 @@ export function Game() {
   const [completedSteps, setCompletedSteps] = useState<number[]>([])
   const [isComplete, setIsComplete] = useState(false)
   const [isTimerActive, setIsTimerActive] = useState(false)
+  const [isTimerPaused, setIsTimerPaused] = useState(false)
   const [isTimerExpired, setIsTimerExpired] = useState(false)
   const [timerStartTime, setTimerStartTime] = useState<number | null>(null)
   const [timerDuration, setTimerDuration] = useState(30 * 60 * 1000)
@@ -114,6 +115,7 @@ export function Game() {
         setCompletedSteps(team.completedSteps)
         setIsComplete(team.isComplete)
         setIsTimerActive(team.isTimerActive)
+        setIsTimerPaused(team.isTimerPaused || false)
         setIsTimerExpired(team.isTimerExpired)
         if (team.timerStartTime) {
           setTimerStartTime(team.timerStartTime)
@@ -168,9 +170,31 @@ export function Game() {
       }
     })
 
+    socket.on('team:timerPaused', (data) => {
+      if (data.teamId === teamId) {
+        setIsTimerActive(false)
+        setIsTimerPaused(true)
+        // Show remaining time frozen
+        const remaining = data.remaining
+        const mins = Math.floor(remaining / 60000)
+        const secs = Math.floor((remaining % 60000) / 1000)
+        setTimerDisplay(`${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`)
+      }
+    })
+
+    socket.on('team:timerResumed', (data) => {
+      if (data.teamId === teamId) {
+        setIsTimerActive(true)
+        setIsTimerPaused(false)
+        setTimerStartTime(Date.now())
+        setTimerDuration(data.duration)
+      }
+    })
+
     socket.on('team:timerExpired', (data) => {
       if (data.teamId === teamId) {
         setIsTimerActive(false)
+        setIsTimerPaused(false)
         setIsTimerExpired(true)
         setShowTimeoutOverlay(true)
       }
@@ -220,6 +244,8 @@ export function Game() {
       socket.off('team:wrong')
       socket.off('team:complete')
       socket.off('team:timerStart')
+      socket.off('team:timerPaused')
+      socket.off('team:timerResumed')
       socket.off('team:timerExpired')
       socket.off('team:positions')
       socket.off('team:memberCount')
@@ -244,8 +270,10 @@ export function Game() {
 
   // Timer display
   useEffect(() => {
+    // When paused, timer display is already set by the timerPaused handler
+    if (isTimerPaused) return
     if (!isTimerActive || !timerStartTime) {
-      if (!isTimerActive && !isTimerExpired) setTimerDisplay('30:00')
+      if (!isTimerActive && !isTimerExpired && !isTimerPaused) setTimerDisplay('30:00')
       return
     }
     const interval = setInterval(() => {
@@ -256,7 +284,7 @@ export function Game() {
       setTimerDisplay(`${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`)
     }, 1000)
     return () => clearInterval(interval)
-  }, [isTimerActive, timerStartTime, timerDuration, isTimerExpired])
+  }, [isTimerActive, isTimerPaused, timerStartTime, timerDuration, isTimerExpired])
 
   // Scroll chat to bottom
   useEffect(() => {
@@ -278,9 +306,9 @@ export function Game() {
 
   // Check location handler
   const handleCheckLocation = useCallback((locationId: string) => {
-    if (!socket || isComplete || !isTimerActive) return
+    if (!socket || isComplete || !isTimerActive || isTimerPaused) return
     socket.emit('player:checkLocation', { locationId })
-  }, [socket, isComplete, isTimerActive])
+  }, [socket, isComplete, isTimerActive, isTimerPaused])
 
   // Get visible locations for map
   const visibleLocations: Location[] = []
@@ -317,10 +345,12 @@ export function Game() {
             }} />
           </div>
           <span style={{
-            fontSize: 13, color: '#f59e0b', fontVariantNumeric: 'tabular-nums',
-            background: 'rgba(245,158,11,0.1)', padding: '4px 10px', borderRadius: 6,
+            fontSize: 13, color: isTimerPaused ? '#f59e0b' : '#f59e0b', fontVariantNumeric: 'tabular-nums',
+            background: isTimerPaused ? 'rgba(245,158,11,0.15)' : 'rgba(245,158,11,0.1)',
+            padding: '4px 10px', borderRadius: 6,
+            animation: isTimerPaused ? 'pulse 1.5s ease-in-out infinite' : 'none',
           }}>
-            ⏱ {timerDisplay}
+            {isTimerPaused ? '⏸' : '⏱'} {timerDisplay}
           </span>
         </div>
       </div>
@@ -479,7 +509,7 @@ export function Game() {
                   <button
                     key={loc.id}
                     onClick={() => handleCheckLocation(loc.id)}
-                    disabled={isComplete || !isTimerActive}
+                    disabled={isComplete || !isTimerActive || isTimerPaused}
                     style={{
                       flex: 1, textAlign: 'center', padding: 14,
                       borderRadius: 10,

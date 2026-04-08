@@ -43,8 +43,11 @@ class GameStateManager {
     }
 
     team.timerStartTime = Date.now();
+    team.timerDuration = 30 * 60 * 1000;
     team.isTimerActive = true;
     team.isTimerExpired = false;
+    team.isTimerPaused = false;
+    team.timerRemainingAtPause = null;
     team.currentStep = 1; // Start at step 1
     team.completedSteps = [];
 
@@ -52,7 +55,7 @@ class GameStateManager {
   }
 
   /**
-   * Stop individual team timer
+   * Stop individual team timer (full reset)
    */
   stopTeamTimer(teamId: number): void {
     const team = this.state.teams[teamId];
@@ -61,7 +64,57 @@ class GameStateManager {
     }
 
     team.isTimerActive = false;
+    team.isTimerPaused = false;
+    team.timerRemainingAtPause = null;
     this.saveState();
+  }
+
+  /**
+   * Pause individual team timer
+   */
+  pauseTeamTimer(teamId: number): number {
+    const team = this.state.teams[teamId];
+    if (!team) {
+      throw new Error(`Team ${teamId} not found`);
+    }
+
+    if (!team.isTimerActive || !team.timerStartTime) {
+      throw new Error(`Team ${teamId} timer is not active`);
+    }
+
+    const elapsed = Date.now() - team.timerStartTime;
+    const remaining = Math.max(0, team.timerDuration - elapsed);
+
+    team.isTimerActive = false;
+    team.isTimerPaused = true;
+    team.timerRemainingAtPause = remaining;
+    this.saveState();
+
+    return remaining;
+  }
+
+  /**
+   * Resume individual team timer
+   */
+  resumeTeamTimer(teamId: number): number {
+    const team = this.state.teams[teamId];
+    if (!team) {
+      throw new Error(`Team ${teamId} not found`);
+    }
+
+    if (!team.isTimerPaused || team.timerRemainingAtPause === null) {
+      throw new Error(`Team ${teamId} timer is not paused`);
+    }
+
+    const remaining = team.timerRemainingAtPause;
+    team.timerStartTime = Date.now();
+    team.timerDuration = remaining;
+    team.isTimerActive = true;
+    team.isTimerPaused = false;
+    team.timerRemainingAtPause = null;
+    this.saveState();
+
+    return remaining;
   }
 
   /**
@@ -359,6 +412,8 @@ class GameStateManager {
         timerDuration: 30 * 60 * 1000,
         isTimerActive: false,
         isTimerExpired: false,
+        isTimerPaused: false,
+        timerRemainingAtPause: null,
         representative: null,
       };
     }
@@ -387,8 +442,11 @@ class GameStateManager {
     team.completedSteps = [];
     team.isComplete = false;
     team.timerStartTime = null;
+    team.timerDuration = 30 * 60 * 1000;
     team.isTimerActive = false;
     team.isTimerExpired = false;
+    team.isTimerPaused = false;
+    team.timerRemainingAtPause = null;
     team.representative = null;
 
     this.saveState();

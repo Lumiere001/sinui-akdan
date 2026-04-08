@@ -47,6 +47,8 @@ export interface TeamState {
   timerDuration: number;                  // 30 minutes in ms
   isTimerActive: boolean;
   isTimerExpired: boolean;
+  isTimerPaused: boolean;                 // 일시정지 여부
+  timerRemainingAtPause: number | null;   // 일시정지 시 남은 시간 (ms)
   representative: string | null;          // playerId of team representative
 }
 
@@ -84,6 +86,8 @@ export interface ServerToClientEvents {
   'team:wrong': (data: { teamId: number; locationId: string; photo: string }) => void;
   'team:complete': (data: { teamId: number; photo: string }) => void;
   'team:timerStart': (data: { teamId: number; duration: number }) => void;
+  'team:timerPaused': (data: { teamId: number; remaining: number }) => void;
+  'team:timerResumed': (data: { teamId: number; duration: number }) => void;
   'team:timerExpired': (data: { teamId: number }) => void;
   'team:positions': (positions: PlayerPosition[]) => void;
   'team:memberCount': (data: { locationId: string; count: number; needed: number }) => void;
@@ -104,6 +108,8 @@ export interface ClientToServerEvents {
   'admin:join': (password: string) => void;
   'admin:startTimer': (teamId: number) => void;
   'admin:stopTimer': (teamId: number) => void;
+  'admin:pauseTimer': (teamId: number) => void;
+  'admin:resumeTimer': (teamId: number) => void;
   'admin:resetGame': () => void;
   'admin:resetTeam': (teamId: number) => void;
 }

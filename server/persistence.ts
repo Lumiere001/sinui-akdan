@@ -20,6 +20,8 @@ function createInitialGameState(): GameState {
       timerDuration: 30 * 60 * 1000, // 30 minutes
       isTimerActive: false,
       isTimerExpired: false,
+      isTimerPaused: false,
+      timerRemainingAtPause: null,
       representative: null,
     };
   }

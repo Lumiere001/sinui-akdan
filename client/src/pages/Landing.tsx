@@ -1,10 +1,45 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { validateTeamLogin } from '../data/gameData'
 
+/**
+ * 카카오톡 인앱 브라우저 감지 및 외부 브라우저로 리다이렉트
+ */
+function useKakaoInAppRedirect() {
+  const [isKakao, setIsKakao] = useState(false)
+
+  useEffect(() => {
+    const ua = navigator.userAgent || ''
+    if (!/KAKAOTALK/i.test(ua)) return
+
+    setIsKakao(true)
+
+    const currentUrl = window.location.href
+
+    // Android: intent:// 스킴으로 Chrome 열기
+    if (/android/i.test(ua)) {
+      window.location.href =
+        'intent://' +
+        currentUrl.replace(/^https?:\/\//, '') +
+        '#Intent;scheme=https;package=com.android.chrome;end'
+      return
+    }
+
+    // iOS: Safari로 열기 위해 카카오 인앱 브라우저 탈출
+    // 방법 1: location.href를 통한 리다이렉트 (카카오톡이 외부 브라우저로 열어줌)
+    if (/iphone|ipad|ipod/i.test(ua)) {
+      // 카카오톡 iOS에서는 Safari로 열기 위해 약간의 딜레이 후 리다이렉트
+      window.location.href = currentUrl
+    }
+  }, [])
+
+  return isKakao
+}
+
 export function Landing() {
   const navigate = useNavigate()
+  const isKakaoInApp = useKakaoInAppRedirect()
   const [teamInput, setTeamInput] = useState('')
   const [passwordInput, setPasswordInput] = useState('')
   const [nameInput, setNameInput] = useState('')
@@ -39,6 +74,72 @@ export function Landing() {
   }
 
   const canSubmit = teamInput && passwordInput && nameInput.trim()
+
+  // 카카오톡 인앱 브라우저일 경우 외부 브라우저 안내 화면 표시
+  if (isKakaoInApp) {
+    const currentUrl = window.location.href
+    const handleOpenExternal = () => {
+      const ua = navigator.userAgent || ''
+      if (/android/i.test(ua)) {
+        window.location.href =
+          'intent://' +
+          currentUrl.replace(/^https?:\/\//, '') +
+          '#Intent;scheme=https;package=com.android.chrome;end'
+      } else {
+        // iOS: 클립보드에 URL 복사 후 안내
+        navigator.clipboard?.writeText(currentUrl)
+        alert('주소가 복사되었습니다.\nSafari를 열고 주소창에 붙여넣기 해주세요.')
+      }
+    }
+
+    return (
+      <div style={{
+        minHeight: '100vh', background: '#0a0a0f',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        padding: '32px 24px', fontFamily: "'Noto Serif KR', serif",
+      }}>
+        <div style={{ textAlign: 'center', maxWidth: 340 }}>
+          <div style={{ fontSize: 48, marginBottom: 20 }}>🌐</div>
+          <h2 style={{ color: '#e0e0e0', fontSize: 20, fontWeight: 700, marginBottom: 12 }}>
+            외부 브라우저에서 열어주세요
+          </h2>
+          <p style={{ color: '#888', fontSize: 14, lineHeight: 1.7, marginBottom: 28 }}>
+            카카오톡 브라우저에서는 위치 서비스 등<br />
+            일부 기능이 제한됩니다.<br />
+            <span style={{ color: '#6fea8d' }}>Chrome</span> 또는 <span style={{ color: '#6fea8d' }}>Safari</span>에서 열어주세요.
+          </p>
+
+          <button
+            onClick={handleOpenExternal}
+            style={{
+              width: '100%', padding: 16, borderRadius: 12,
+              background: '#6fea8d', color: '#0a0a0f',
+              fontSize: 16, fontWeight: 700, border: 'none',
+              cursor: 'pointer', marginBottom: 12,
+              fontFamily: "'Noto Serif KR', serif",
+            }}
+          >
+            외부 브라우저로 열기
+          </button>
+
+          <div style={{
+            padding: '14px 16px', borderRadius: 10,
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.08)',
+          }}>
+            <div style={{ fontSize: 11, color: '#666', marginBottom: 6 }}>또는 직접 주소를 복사해서 브라우저에 붙여넣기</div>
+            <div style={{
+              fontSize: 12, color: '#aaa', fontFamily: 'monospace',
+              wordBreak: 'break-all', lineHeight: 1.5,
+            }}>
+              {currentUrl}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{

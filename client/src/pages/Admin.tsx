@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useSocket } from '../hooks/useSocket'
 import type { GameState, ChatMessage, PlayerPosition, TeamStage } from '../../../shared/types'
+import { colors, typography, spacing, radius, transitions } from '../theme'
 
 const ADMIN_PASSWORD = 'admin2024'
 
@@ -85,7 +86,7 @@ function AdminMap({ gameState, round }: { gameState: GameState | null; round: 1 
         ctx.fillStyle = color
         ctx.beginPath(); ctx.arc(11, 11, 4, 0, Math.PI * 2); ctx.fill()
         // Team number
-        ctx.fillStyle = '#fff'
+        ctx.fillStyle = colors.textPrimary
         ctx.font = 'bold 7px sans-serif'
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
         ctx.fillText(String(tId), 11, 11)
@@ -116,13 +117,13 @@ function AdminMap({ gameState, round }: { gameState: GameState | null; round: 1 
 
   if (mapError) {
     return (
-      <div style={{ width: '100%', height: '100%', minHeight: 200, background: '#0f1218', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center', color: '#555', fontSize: 12 }}>지도를 불러올 수 없습니다</div>
+      <div style={{ width: '100%', height: '100%', minHeight: 200, background: colors.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center', color: colors.textMuted, fontSize: typography.sm }}>지도를 불러올 수 없습니다</div>
       </div>
     )
   }
 
-  return <div ref={mapRef} style={{ width: '100%', height: '100%', minHeight: 200, background: '#0f1218' }} />
+  return <div ref={mapRef} style={{ width: '100%', height: '100%', minHeight: 200, background: colors.bg }} />
 }
 
 // ========== Main Admin Component ==========
@@ -312,11 +313,11 @@ export function Admin() {
   // Login screen
   if (!isLoggedIn) {
     return (
-      <div style={{ background: '#0a0a0f', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Noto Serif KR', serif" }}>
-        <div style={{ width: '100%', maxWidth: 360, padding: '0 24px' }}>
-          <div style={{ textAlign: 'center', marginBottom: 32 }}>
-            <div style={{ fontSize: 36, marginBottom: 12 }}>🔒</div>
-            <h1 style={{ fontSize: 22, fontWeight: 700, color: '#e0e0e0' }}>관리자 로그인</h1>
+      <div style={{ background: colors.bg, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: typography.fontFamily }}>
+        <div style={{ width: '100%', maxWidth: 360, padding: `0 ${spacing.lg}px` }}>
+          <div style={{ textAlign: 'center', marginBottom: spacing.xxl }}>
+            <div style={{ fontSize: 36, marginBottom: spacing.md }}>🔒</div>
+            <h1 style={{ fontSize: typography.xl, fontWeight: typography.bold, color: colors.textPrimary }}>관리자 로그인</h1>
           </div>
           <input
             type="password" placeholder="관리자 비밀번호"
@@ -324,17 +325,17 @@ export function Admin() {
             onChange={e => setPassword(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleLogin()}
             style={{
-              width: '100%', padding: '14px 16px', borderRadius: 8, marginBottom: 12,
-              background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-              color: '#e0e0e0', fontSize: 14, outline: 'none', boxSizing: 'border-box',
-              fontFamily: "'Noto Serif KR', serif",
+              width: '100%', padding: `${spacing.md}px ${spacing.lg}px`, borderRadius: radius.md, marginBottom: spacing.sm,
+              background: colors.borderLight, border: `1px solid ${colors.border}`,
+              color: colors.textPrimary, fontSize: typography.base, outline: 'none', boxSizing: 'border-box',
+              fontFamily: typography.fontFamily,
             }}
           />
-          {loginError && <div style={{ fontSize: 12, color: '#f87171', marginBottom: 8 }}>비밀번호가 틀렸습니다</div>}
+          {loginError && <div style={{ fontSize: typography.sm, color: colors.error, marginBottom: spacing.sm }}>비밀번호가 틀렸습니다</div>}
           <button onClick={handleLogin} style={{
-            width: '100%', padding: '14px', borderRadius: 8,
-            background: '#fff', color: '#0a0a0f', fontWeight: 700, fontSize: 14,
-            border: 'none', cursor: 'pointer', fontFamily: "'Noto Serif KR', serif",
+            width: '100%', padding: `${spacing.md}px`, borderRadius: radius.md,
+            background: colors.accent, color: colors.bg, fontWeight: typography.bold, fontSize: typography.base,
+            border: 'none', cursor: 'pointer', fontFamily: typography.fontFamily,
           }}>로그인</button>
         </div>
       </div>
@@ -353,51 +354,51 @@ export function Admin() {
   const totalUnread = Object.values(unreadCounts).reduce((s, c) => s + c, 0)
 
   return (
-    <div style={{ background: '#0a0a0f', minHeight: '100vh', color: '#e0e0e0', fontFamily: "'Noto Serif KR', serif" }}>
+    <div style={{ background: colors.bg, minHeight: '100vh', color: colors.textPrimary, fontFamily: typography.fontFamily }}>
       {/* ===== Header ===== */}
       <div style={{
-        position: 'sticky', top: 0, zIndex: 50, background: '#0a0a0f',
-        borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '12px 16px',
+        position: 'sticky', top: 0, zIndex: 50, background: colors.bg,
+        borderBottom: `1px solid ${colors.borderLight}`, padding: `${spacing.sm}px ${spacing.lg}px`,
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>🎼 관리자 대시보드</h1>
-            <div style={{ fontSize: 11, color: '#888', marginTop: 2, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <h1 style={{ fontSize: typography.lg, fontWeight: typography.bold, margin: 0 }}>🎼 관리자 대시보드</h1>
+            <div style={{ fontSize: typography.xs, color: colors.textMuted, marginTop: 2, display: 'flex', alignItems: 'center', gap: spacing.sm }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', display: 'inline-block', background: isConnected ? '#6fea8d' : '#ef4444' }} />
+                <span style={{ width: 6, height: 6, borderRadius: '50%', display: 'inline-block', background: isConnected ? colors.accent : colors.error }} />
                 {isConnected ? '연결됨' : '연결 끊김'}
               </span>
               <span>👥 {connectedPlayers}명</span>
               <span>📜 서약 {totalPledges}명</span>
               {totalUnread > 0 && (
-                <span style={{ background: '#ef4444', color: '#fff', borderRadius: 8, padding: '1px 6px', fontSize: 10, fontWeight: 700 }}>
+                <span style={{ background: colors.error, color: colors.textPrimary, borderRadius: radius.sm, padding: '1px 6px', fontSize: typography.xs, fontWeight: typography.bold }}>
                   💬 {totalUnread}
                 </span>
               )}
             </div>
           </div>
           <button onClick={resetGame} style={{
-            padding: '8px 14px', borderRadius: 8, fontSize: 12,
-            background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)',
-            color: '#f87171', cursor: 'pointer', fontFamily: "'Noto Serif KR', serif",
+            padding: `${spacing.xs}px ${spacing.md}px`, borderRadius: radius.md, fontSize: typography.sm,
+            background: colors.errorBg, border: `1px solid ${colors.errorBorder}`,
+            color: colors.error, cursor: 'pointer', fontFamily: typography.fontFamily,
           }}>초기화</button>
         </div>
       </div>
 
       {/* ===== Round Tabs ===== */}
-      <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <div style={{ display: 'flex', borderBottom: `1px solid ${colors.borderLight}` }}>
         {([1, 2, 3] as const).map(r => (
           <button
             key={r}
             onClick={() => setActiveRound(r)}
             style={{
-              flex: 1, padding: '10px', fontSize: 13, fontWeight: 600,
-              background: activeRound === r ? 'rgba(255,255,255,0.05)' : 'transparent',
-              borderBottom: activeRound === r ? '2px solid #d4a853' : '2px solid transparent',
-              color: activeRound === r ? '#d4a853' : '#666',
+              flex: 1, padding: spacing.md, fontSize: typography.base, fontWeight: typography.semibold,
+              background: activeRound === r ? colors.surfaceLight : 'transparent',
+              borderBottom: activeRound === r ? `2px solid ${colors.accent}` : `2px solid transparent`,
+              color: activeRound === r ? colors.accent : colors.textMuted,
               border: 'none', borderBottomStyle: 'solid', borderBottomWidth: 2,
-              cursor: 'pointer', fontFamily: "'Noto Serif KR', serif",
-              transition: 'all 0.2s',
+              cursor: 'pointer', fontFamily: typography.fontFamily,
+              transition: transitions.normal,
             }}
           >
             {r === 1 ? '🅰 라운드 1 (팀 1-5)' : r === 2 ? '🅱 라운드 2 (팀 6-10)' : '🧪 테스트 (팀 11)'}
@@ -406,15 +407,15 @@ export function Admin() {
       </div>
 
       {/* ===== Map Section ===== */}
-      <div style={{ height: '28vh', minHeight: 180, borderBottom: '1px solid rgba(255,255,255,0.06)', position: 'relative' }}>
+      <div style={{ height: '28vh', minHeight: 180, borderBottom: `1px solid ${colors.borderLight}`, position: 'relative' }}>
         <AdminMap gameState={gameState} round={activeRound} />
         {/* Map legend */}
         <div style={{
-          position: 'absolute', bottom: 8, left: 8, display: 'flex', gap: 6, flexWrap: 'wrap',
-          background: 'rgba(10,10,15,0.85)', borderRadius: 6, padding: '5px 8px',
+          position: 'absolute', bottom: 8, left: 8, display: 'flex', gap: spacing.xs, flexWrap: 'wrap',
+          background: 'rgba(10,10,15,0.85)', borderRadius: radius.sm, padding: `5px ${spacing.sm}px`,
         }}>
           {roundTeams.map(tId => (
-            <span key={tId} style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, color: '#aaa' }}>
+            <span key={tId} style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: typography.xs, color: colors.textSecondary }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: TEAM_COLORS[tId], display: 'inline-block' }} />
               {tId}
             </span>
@@ -422,9 +423,9 @@ export function Admin() {
         </div>
       </div>
 
-      <div style={{ padding: '12px 16px' }}>
+      <div style={{ padding: `${spacing.sm}px ${spacing.lg}px` }}>
         {/* ===== Team Cards ===== */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10, marginBottom: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: spacing.md, marginBottom: 20 }}>
           {roundTeams.map(tId => {
             const team = gameState?.teams[tId]
             const memberCount = team ? Object.keys(team.members).length : 0
@@ -441,28 +442,28 @@ export function Admin() {
             const teamUnread = unreadCounts[tId] || 0
 
             // Stage-based styling
-            const stageBorderColor = teamUnread > 0 ? 'rgba(59,130,246,0.3)'
-              : teamStage === 'stage1' ? 'rgba(168,85,247,0.25)'
+            const stageBorderColor = teamUnread > 0 ? colors.infoBorder
+              : teamStage === 'stage1' ? colors.stage1Border
               : teamStage === 'stage1_ready' ? 'rgba(168,85,247,0.15)'
-              : teamStage === 'stage2' ? 'rgba(59,130,246,0.25)'
-              : teamStage === 'stage2_ready' ? 'rgba(59,130,246,0.15)'
-              : isDone ? 'rgba(111,234,141,0.2)' : isExpired ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.06)'
-            const stageBgColor = teamUnread > 0 ? 'rgba(59,130,246,0.04)'
-              : teamStage === 'stage1' ? 'rgba(168,85,247,0.04)'
-              : teamStage === 'stage2' ? 'rgba(59,130,246,0.04)'
-              : isDone ? 'rgba(111,234,141,0.06)' : isExpired ? 'rgba(239,68,68,0.06)' : 'rgba(255,255,255,0.03)'
+              : teamStage === 'stage2' ? colors.stage2Border
+              : teamStage === 'stage2_ready' ? 'rgba(83,157,245,0.15)'
+              : isDone ? 'rgba(29,185,84,0.2)' : isExpired ? colors.errorBorder : colors.borderLight
+            const stageBgColor = teamUnread > 0 ? colors.infoBg
+              : teamStage === 'stage1' ? colors.stage1Bg
+              : teamStage === 'stage2' ? colors.stage2Bg
+              : isDone ? 'rgba(29,185,84,0.06)' : isExpired ? colors.errorBg : colors.surface
             const stageBadgeConfig: Record<string, { label: string; color: string; bg: string }> = {
-              idle: { label: '대기', color: '#666', bg: 'rgba(255,255,255,0.04)' },
-              stage1_ready: { label: 'S1 준비', color: '#a855f7', bg: 'rgba(168,85,247,0.1)' },
-              stage1: { label: 'Stage 1', color: '#a855f7', bg: 'rgba(168,85,247,0.15)' },
-              stage2_ready: { label: 'S2 준비', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
-              stage2: { label: 'Stage 2', color: '#3b82f6', bg: 'rgba(59,130,246,0.15)' },
+              idle: { label: '대기', color: colors.textDisabled, bg: colors.borderLight },
+              stage1_ready: { label: 'S1 준비', color: colors.stage1, bg: colors.stage1Bg },
+              stage1: { label: 'Stage 1', color: colors.stage1, bg: colors.stage1Bg },
+              stage2_ready: { label: 'S2 준비', color: colors.stage2, bg: colors.stage2Bg },
+              stage2: { label: 'Stage 2', color: colors.stage2, bg: colors.stage2Bg },
             }
             const badge = stageBadgeConfig[teamStage] || stageBadgeConfig.idle
 
             return (
               <div key={tId} style={{
-                padding: '12px', borderRadius: 10, position: 'relative',
+                padding: `${spacing.md}px`, borderRadius: radius.lg, position: 'relative',
                 background: stageBgColor,
                 border: `1px solid ${stageBorderColor}`,
               }}>
@@ -471,59 +472,59 @@ export function Admin() {
                   <span style={{
                     position: 'absolute', top: -4, right: -4,
                     width: 20, height: 20, borderRadius: '50%',
-                    background: '#3b82f6', color: '#fff',
+                    background: colors.info, color: colors.textPrimary,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 10, fontWeight: 700,
-                    boxShadow: '0 0 8px rgba(59,130,246,0.5)',
+                    fontSize: typography.xs, fontWeight: typography.bold,
+                    boxShadow: `0 0 8px ${colors.infoBorder}`,
                   }}>{teamUnread}</span>
                 )}
 
                 {/* Stage badge bar */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
                   <span style={{
-                    padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700,
+                    padding: `2px ${spacing.sm}px`, borderRadius: radius.sm, fontSize: typography.xs, fontWeight: typography.bold,
                     background: badge.bg, color: badge.color, letterSpacing: 0.5,
                     border: `1px solid ${badge.color}30`,
                   }}>{badge.label}</span>
                   {teamStage === 'stage2' && (
-                    <span style={{ fontSize: 10, color: '#666' }}>단계 {getStepLabel(tId)}</span>
+                    <span style={{ fontSize: typography.xs, color: colors.textMuted }}>단계 {getStepLabel(tId)}</span>
                   )}
                   {(teamStage === 'stage1' && s1Active) && (
-                    <span style={{ fontSize: 10, color: '#a855f7' }}>진행 중</span>
+                    <span style={{ fontSize: typography.xs, color: colors.stage1 }}>진행 중</span>
                   )}
                   {(teamStage === 'stage1' && s1Expired) && (
-                    <span style={{ fontSize: 10, color: '#ef4444' }}>시간 종료</span>
+                    <span style={{ fontSize: typography.xs, color: colors.error }}>시간 종료</span>
                   )}
                 </div>
 
                 {/* Team header row */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                     <span style={{
-                      width: 28, height: 28, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: `${color}20`, color, fontFamily: 'monospace', fontSize: 13, fontWeight: 700,
+                      width: 28, height: 28, borderRadius: radius.sm, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: `${color}20`, color, fontFamily: 'monospace', fontSize: typography.base, fontWeight: typography.bold,
                     }}>{tId}</span>
                     <div>
-                      <div style={{ fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ fontSize: typography.md, fontWeight: typography.semibold, display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                         팀 {tId}
                         {teamUnread > 0 && (
                           <span style={{
-                            background: '#3b82f6', color: '#fff', borderRadius: 8, padding: '1px 7px',
-                            fontSize: 10, fontWeight: 700, lineHeight: '16px',
+                            background: colors.info, color: colors.textPrimary, borderRadius: radius.md, padding: '1px 7px',
+                            fontSize: typography.xs, fontWeight: typography.bold, lineHeight: '16px',
                           }}>💬 {teamUnread}개 안 읽음</span>
                         )}
                       </div>
-                      <div style={{ fontSize: 10, color: '#666', display: 'flex', gap: 6 }}>
+                      <div style={{ fontSize: typography.xs, color: colors.textMuted, display: 'flex', gap: spacing.sm }}>
                         <span>👥 {memberCount}명</span>
                         <span>📜 {pCount}명</span>
                       </div>
                     </div>
                   </div>
                   <div style={{
-                    fontFamily: 'monospace', fontSize: 16, fontWeight: 600,
+                    fontFamily: 'monospace', fontSize: typography.lg, fontWeight: typography.semibold,
                     color: (teamStage === 'stage1' || teamStage === 'stage1_ready')
-                      ? (s1Active ? '#a855f7' : s1Paused ? '#f59e0b' : s1Expired ? '#ef4444' : '#555')
-                      : (isActive ? '#6fea8d' : isPaused ? '#f59e0b' : isExpired ? '#ef4444' : '#555'),
+                      ? (s1Active ? colors.stage1 : s1Paused ? colors.warning : s1Expired ? colors.error : colors.textDisabled)
+                      : (isActive ? colors.accent : isPaused ? colors.warning : isExpired ? colors.error : colors.textDisabled),
                   }}>
                     {(teamStage === 'stage1' || teamStage === 'stage1_ready')
                       ? (s1Paused ? `⏸ ${getStage1TimerDisplay(tId)}` : getStage1TimerDisplay(tId))
@@ -533,14 +534,14 @@ export function Admin() {
                 </div>
 
                 {/* Stage progress indicator */}
-                <div style={{ display: 'flex', gap: 3, marginBottom: 8 }}>
+                <div style={{ display: 'flex', gap: 3, marginBottom: spacing.sm }}>
                   {/* Stage 1 indicator */}
                   <div style={{
                     flex: 1, height: 4, borderRadius: 2,
-                    background: teamStage === 'stage1' ? (s1Active ? '#a855f7' : s1Expired ? '#ef4444' : 'rgba(168,85,247,0.3)')
-                      : (teamStage === 'stage2' || teamStage === 'stage2_ready') ? '#a855f7'
-                      : teamStage === 'stage1_ready' ? 'rgba(168,85,247,0.3)' : 'rgba(255,255,255,0.08)',
-                    transition: 'background 0.3s',
+                    background: teamStage === 'stage1' ? (s1Active ? colors.stage1 : s1Expired ? colors.error : colors.stage1Border)
+                      : (teamStage === 'stage2' || teamStage === 'stage2_ready') ? colors.stage1
+                      : teamStage === 'stage1_ready' ? colors.stage1Border : colors.borderLight,
+                    transition: transitions.normal,
                   }} />
                   {/* Stage 2 steps */}
                   {[1, 2, 3].map(step => {
@@ -551,12 +552,12 @@ export function Admin() {
                       <div key={step} style={{ flex: 1, position: 'relative' }}>
                         <div style={{
                           height: 4, borderRadius: 2,
-                          background: completed ? '#6fea8d' : current ? '#d4a853' : isStage2 ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.08)',
-                          transition: 'background 0.3s',
+                          background: completed ? colors.accent : current ? colors.accent : isStage2 ? colors.stage2Border : colors.borderLight,
+                          transition: transitions.normal,
                         }} />
                         <span style={{
                           position: 'absolute', top: 6, left: '50%', transform: 'translateX(-50%)',
-                          fontSize: 8, color: completed ? '#6fea8d' : current ? '#d4a853' : '#444',
+                          fontSize: typography.xs, color: completed ? colors.accent : current ? colors.accent : colors.textDisabled,
                         }}>
                           {completed ? '✓' : step}
                         </span>
@@ -568,24 +569,24 @@ export function Admin() {
                 {/* Team members list */}
                 {memberCount > 0 && (
                   <div style={{
-                    marginTop: 10, padding: '8px 10px', borderRadius: 8,
-                    background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)',
+                    marginTop: spacing.md, padding: `${spacing.sm}px ${spacing.md}px`, borderRadius: radius.md,
+                    background: colors.surface, border: `1px solid ${colors.borderLight}`,
                   }}>
-                    <div style={{ fontSize: 9, color: '#555', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 5 }}>접속 멤버</div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    <div style={{ fontSize: typography.xs, color: colors.textDisabled, textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.xs }}>접속 멤버</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.xs }}>
                       {Object.keys(team!.members).map(pid => {
                         const name = pid.includes('_') ? pid.split('_').slice(1).join('_') : pid
                         const isRep = team!.representative === pid
                         return (
                           <span key={pid} style={{
                             display: 'inline-flex', alignItems: 'center', gap: 3,
-                            padding: '3px 8px', borderRadius: 12, fontSize: 11,
-                            background: isRep ? 'rgba(111,234,141,0.1)' : 'rgba(255,255,255,0.04)',
-                            border: `1px solid ${isRep ? 'rgba(111,234,141,0.25)' : 'rgba(255,255,255,0.06)'}`,
-                            color: isRep ? '#6fea8d' : '#aaa',
-                            fontWeight: isRep ? 600 : 400,
+                            padding: `3px ${spacing.sm}px`, borderRadius: radius.pill, fontSize: typography.sm,
+                            background: isRep ? colors.accentMuted : colors.borderLight,
+                            border: `1px solid ${isRep ? colors.accentBorder : colors.borderLight}`,
+                            color: isRep ? colors.accent : colors.textSecondary,
+                            fontWeight: isRep ? typography.semibold : typography.normal,
                           }}>
-                            {isRep && <span style={{ fontSize: 10 }}>👑</span>}
+                            {isRep && <span style={{ fontSize: typography.base }}>👑</span>}
                             {name}
                           </span>
                         )
@@ -595,9 +596,9 @@ export function Admin() {
                 )}
 
                 {/* Stage + Timer controls */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 12 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm, marginTop: spacing.md }}>
                   {/* Stage selector */}
-                  <div style={{ display: 'flex', gap: 4 }}>
+                  <div style={{ display: 'flex', gap: spacing.xs }}>
                     {(['stage1_ready', 'stage2_ready'] as const).map(s => {
                       const label = s === 'stage1_ready' ? 'S1 준비' : 'S2 준비'
                       const active = teamStage === s || (s === 'stage1_ready' && teamStage === 'stage1') || (s === 'stage2_ready' && teamStage === 'stage2')
@@ -614,11 +615,12 @@ export function Admin() {
                           setTeamStage(tId, s)
                         }}
                           style={{
-                            flex: 1, padding: '5px', borderRadius: 5, fontSize: 10, fontWeight: 600,
-                            background: active ? 'rgba(212,168,83,0.1)' : 'rgba(255,255,255,0.02)',
-                            border: `1px solid ${active ? 'rgba(212,168,83,0.3)' : 'rgba(255,255,255,0.04)'}`,
-                            color: active ? '#d4a853' : '#555',
-                            cursor: 'pointer', fontFamily: "'Noto Serif KR', serif",
+                            flex: 1, padding: spacing.xs, borderRadius: radius.sm, fontSize: typography.xs, fontWeight: typography.semibold,
+                            background: active ? colors.accentMuted : colors.borderLight,
+                            border: `1px solid ${active ? colors.accentBorder : colors.borderLight}`,
+                            color: active ? colors.accent : colors.textDisabled,
+                            cursor: 'pointer', fontFamily: typography.fontFamily,
+                            transition: transitions.normal,
                           }}
                         >{label}</button>
                       )
@@ -626,50 +628,54 @@ export function Admin() {
                   </div>
 
                   {/* Timer controls - changes based on stage */}
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: spacing.sm }}>
                     {(teamStage === 'stage1_ready' || teamStage === 'stage1') ? (
                       <>
                         <button onClick={() => stage1StartTimer(tId)}
                           disabled={s1Active || s1Paused}
                           style={{
-                            flex: 1, padding: '7px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                            background: s1Active || s1Paused ? 'rgba(255,255,255,0.02)' : 'rgba(111,234,141,0.08)',
-                            border: `1px solid ${s1Active || s1Paused ? 'rgba(255,255,255,0.04)' : 'rgba(111,234,141,0.2)'}`,
-                            color: s1Active || s1Paused ? '#444' : '#6fea8d',
+                            flex: 1, padding: spacing.xs, borderRadius: radius.md, fontSize: typography.sm, fontWeight: typography.semibold,
+                            background: s1Active || s1Paused ? colors.borderLight : colors.accentMuted,
+                            border: `1px solid ${s1Active || s1Paused ? colors.borderLight : colors.accentBorder}`,
+                            color: s1Active || s1Paused ? colors.textDisabled : colors.accent,
                             cursor: s1Active || s1Paused ? 'not-allowed' : 'pointer',
-                            fontFamily: "'Noto Serif KR', serif",
+                            fontFamily: typography.fontFamily,
+                            transition: transitions.normal,
                           }}
                         >▶ S1 시작</button>
                         {s1Paused ? (
                           <button onClick={() => stage1ResumeTimer(tId)}
                             style={{
-                              flex: 1, padding: '7px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                              background: 'rgba(111,234,141,0.08)', border: '1px solid rgba(111,234,141,0.2)',
-                              color: '#6fea8d', cursor: 'pointer', fontFamily: "'Noto Serif KR', serif",
+                              flex: 1, padding: spacing.xs, borderRadius: radius.md, fontSize: typography.sm, fontWeight: typography.semibold,
+                              background: colors.accentMuted, border: `1px solid ${colors.accentBorder}`,
+                              color: colors.accent, cursor: 'pointer', fontFamily: typography.fontFamily,
+                              transition: transitions.normal,
                             }}
                           >▶ 재개</button>
                         ) : (
                           <button onClick={() => stage1PauseTimer(tId)}
                             disabled={!s1Active}
                             style={{
-                              flex: 1, padding: '7px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                              background: !s1Active ? 'rgba(255,255,255,0.02)' : 'rgba(245,158,11,0.08)',
-                              border: `1px solid ${!s1Active ? 'rgba(255,255,255,0.04)' : 'rgba(245,158,11,0.2)'}`,
-                              color: !s1Active ? '#444' : '#f59e0b',
+                              flex: 1, padding: spacing.xs, borderRadius: radius.md, fontSize: typography.sm, fontWeight: typography.semibold,
+                              background: !s1Active ? colors.borderLight : colors.warningBg,
+                              border: `1px solid ${!s1Active ? colors.borderLight : colors.warningBorder}`,
+                              color: !s1Active ? colors.textDisabled : colors.warning,
                               cursor: !s1Active ? 'not-allowed' : 'pointer',
-                              fontFamily: "'Noto Serif KR', serif",
+                              fontFamily: typography.fontFamily,
+                              transition: transitions.normal,
                             }}
                           >⏸</button>
                         )}
                         <button onClick={() => stage1StopTimer(tId)}
                           disabled={!s1Active && !s1Paused}
                           style={{
-                            padding: '7px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                            background: !s1Active && !s1Paused ? 'rgba(255,255,255,0.02)' : 'rgba(239,68,68,0.08)',
-                            border: `1px solid ${!s1Active && !s1Paused ? 'rgba(255,255,255,0.04)' : 'rgba(239,68,68,0.2)'}`,
-                            color: !s1Active && !s1Paused ? '#444' : '#f87171',
+                            padding: spacing.xs, borderRadius: radius.md, fontSize: typography.sm, fontWeight: typography.semibold,
+                            background: !s1Active && !s1Paused ? colors.borderLight : colors.errorBg,
+                            border: `1px solid ${!s1Active && !s1Paused ? colors.borderLight : colors.errorBorder}`,
+                            color: !s1Active && !s1Paused ? colors.textDisabled : colors.error,
                             cursor: !s1Active && !s1Paused ? 'not-allowed' : 'pointer',
-                            fontFamily: "'Noto Serif KR', serif",
+                            fontFamily: typography.fontFamily,
+                            transition: transitions.normal,
                           }}
                         >■</button>
                       </>
@@ -678,77 +684,83 @@ export function Admin() {
                         <button onClick={() => startTimer(tId)}
                           disabled={isActive || isPaused || isDone}
                           style={{
-                            flex: 1, padding: '7px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                            background: isActive || isPaused || isDone ? 'rgba(255,255,255,0.02)' : 'rgba(111,234,141,0.08)',
-                            border: `1px solid ${isActive || isPaused || isDone ? 'rgba(255,255,255,0.04)' : 'rgba(111,234,141,0.2)'}`,
-                            color: isActive || isPaused || isDone ? '#444' : '#6fea8d',
+                            flex: 1, padding: spacing.xs, borderRadius: radius.md, fontSize: typography.sm, fontWeight: typography.semibold,
+                            background: isActive || isPaused || isDone ? colors.borderLight : colors.accentMuted,
+                            border: `1px solid ${isActive || isPaused || isDone ? colors.borderLight : colors.accentBorder}`,
+                            color: isActive || isPaused || isDone ? colors.textDisabled : colors.accent,
                             cursor: isActive || isPaused || isDone ? 'not-allowed' : 'pointer',
-                            fontFamily: "'Noto Serif KR', serif",
+                            fontFamily: typography.fontFamily,
+                            transition: transitions.normal,
                           }}
                         >▶ S2 시작</button>
                         {isPaused ? (
                           <button onClick={() => resumeTimer(tId)}
                             style={{
-                              flex: 1, padding: '7px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                              background: 'rgba(111,234,141,0.08)', border: '1px solid rgba(111,234,141,0.2)',
-                              color: '#6fea8d', cursor: 'pointer', fontFamily: "'Noto Serif KR', serif",
+                              flex: 1, padding: spacing.xs, borderRadius: radius.md, fontSize: typography.sm, fontWeight: typography.semibold,
+                              background: colors.accentMuted, border: `1px solid ${colors.accentBorder}`,
+                              color: colors.accent, cursor: 'pointer', fontFamily: typography.fontFamily,
+                              transition: transitions.normal,
                             }}
                           >▶ 재개</button>
                         ) : (
                           <button onClick={() => pauseTimer(tId)}
                             disabled={!isActive}
                             style={{
-                              flex: 1, padding: '7px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                              background: !isActive ? 'rgba(255,255,255,0.02)' : 'rgba(245,158,11,0.08)',
-                              border: `1px solid ${!isActive ? 'rgba(255,255,255,0.04)' : 'rgba(245,158,11,0.2)'}`,
-                              color: !isActive ? '#444' : '#f59e0b',
+                              flex: 1, padding: spacing.xs, borderRadius: radius.md, fontSize: typography.sm, fontWeight: typography.semibold,
+                              background: !isActive ? colors.borderLight : colors.warningBg,
+                              border: `1px solid ${!isActive ? colors.borderLight : colors.warningBorder}`,
+                              color: !isActive ? colors.textDisabled : colors.warning,
                               cursor: !isActive ? 'not-allowed' : 'pointer',
-                              fontFamily: "'Noto Serif KR', serif",
+                              fontFamily: typography.fontFamily,
+                              transition: transitions.normal,
                             }}
                           >⏸</button>
                         )}
                         <button onClick={() => stopTimer(tId)}
                           disabled={!isActive && !isPaused}
                           style={{
-                            padding: '7px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                            background: !isActive && !isPaused ? 'rgba(255,255,255,0.02)' : 'rgba(239,68,68,0.08)',
-                            border: `1px solid ${!isActive && !isPaused ? 'rgba(255,255,255,0.04)' : 'rgba(239,68,68,0.2)'}`,
-                            color: !isActive && !isPaused ? '#444' : '#f87171',
+                            padding: spacing.xs, borderRadius: radius.md, fontSize: typography.sm, fontWeight: typography.semibold,
+                            background: !isActive && !isPaused ? colors.borderLight : colors.errorBg,
+                            border: `1px solid ${!isActive && !isPaused ? colors.borderLight : colors.errorBorder}`,
+                            color: !isActive && !isPaused ? colors.textDisabled : colors.error,
                             cursor: !isActive && !isPaused ? 'not-allowed' : 'pointer',
-                            fontFamily: "'Noto Serif KR', serif",
+                            fontFamily: typography.fontFamily,
+                            transition: transitions.normal,
                           }}
                         >■</button>
                       </>
                     ) : (
-                      <div style={{ flex: 1, padding: '7px', fontSize: 11, color: '#555', textAlign: 'center' }}>
+                      <div style={{ flex: 1, padding: spacing.xs, fontSize: typography.sm, color: colors.textDisabled, textAlign: 'center' }}>
                         스테이지를 선택하세요
                       </div>
                     )}
                     <button
                       onClick={() => { setSelectedChatTeam(tId); document.getElementById('admin-chat-section')?.scrollIntoView({ behavior: 'smooth' }) }}
                       style={{
-                        padding: '7px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                        background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)',
-                        color: '#60a5fa', cursor: 'pointer', fontFamily: "'Noto Serif KR', serif",
+                        padding: spacing.xs, borderRadius: radius.md, fontSize: typography.sm, fontWeight: typography.semibold,
+                        background: colors.infoBg, border: `1px solid ${colors.infoBorder}`,
+                        color: colors.info, cursor: 'pointer', fontFamily: typography.fontFamily,
                         position: 'relative',
+                        transition: transitions.normal,
                       }}
                     >
                       💬
                       {teamUnread > 0 && (
                         <span style={{
                           position: 'absolute', top: -4, right: -4,
-                          background: '#ef4444', color: '#fff', borderRadius: '50%',
+                          background: colors.error, color: colors.textPrimary, borderRadius: '50%',
                           width: 14, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 8, fontWeight: 700,
+                          fontSize: typography.xs, fontWeight: typography.bold,
                         }}>{teamUnread}</span>
                       )}
                     </button>
                     <button
                       onClick={() => resetTeam(tId)}
                       style={{
-                        padding: '7px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                        background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
-                        color: '#f59e0b', cursor: 'pointer', fontFamily: "'Noto Serif KR', serif",
+                        padding: spacing.xs, borderRadius: radius.md, fontSize: typography.sm, fontWeight: typography.semibold,
+                        background: colors.warningBg, border: `1px solid ${colors.warningBorder}`,
+                        color: colors.warning, cursor: 'pointer', fontFamily: typography.fontFamily,
+                        transition: transitions.normal,
                       }}
                     >↺</button>
                   </div>
@@ -760,12 +772,12 @@ export function Admin() {
 
         {/* ===== Chat Section ===== */}
         <div id="admin-chat-section">
-          <div style={{ fontSize: 11, color: '#666', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 10 }}>
+          <div style={{ fontSize: typography.xs, color: colors.textDisabled, textTransform: 'uppercase', letterSpacing: 2, marginBottom: spacing.md }}>
             팀 채팅
           </div>
 
           {/* Team chat tabs */}
-          <div style={{ display: 'flex', gap: 4, marginBottom: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: spacing.xs, marginBottom: spacing.md, flexWrap: 'wrap' }}>
             {Array.from({ length: 11 }, (_, i) => i + 1).map(tId => {
               const unread = unreadCounts[tId] || 0
               const isSelected = selectedChatTeam === tId
@@ -774,21 +786,22 @@ export function Admin() {
                   key={tId}
                   onClick={() => setSelectedChatTeam(tId)}
                   style={{
-                    padding: '5px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                    background: isSelected ? `${TEAM_COLORS[tId]}20` : 'rgba(255,255,255,0.03)',
-                    border: `1px solid ${isSelected ? `${TEAM_COLORS[tId]}40` : 'rgba(255,255,255,0.04)'}`,
-                    color: isSelected ? TEAM_COLORS[tId] : '#666',
-                    cursor: 'pointer', fontFamily: "'Noto Serif KR', serif",
+                    padding: `${spacing.xs}px ${spacing.md}px`, borderRadius: radius.md, fontSize: typography.sm, fontWeight: typography.semibold,
+                    background: isSelected ? `${TEAM_COLORS[tId]}20` : colors.borderLight,
+                    border: `1px solid ${isSelected ? `${TEAM_COLORS[tId]}40` : colors.borderLight}`,
+                    color: isSelected ? TEAM_COLORS[tId] : colors.textDisabled,
+                    cursor: 'pointer', fontFamily: typography.fontFamily,
                     position: 'relative',
+                    transition: transitions.normal,
                   }}
                 >
                   {tId}
                   {unread > 0 && (
                     <span style={{
                       position: 'absolute', top: -5, right: -5,
-                      background: '#ef4444', color: '#fff', borderRadius: '50%',
+                      background: colors.error, color: colors.textPrimary, borderRadius: '50%',
                       width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 9, fontWeight: 700,
+                      fontSize: typography.xs, fontWeight: typography.bold,
                     }}>{unread}</span>
                   )}
                 </button>
@@ -798,28 +811,29 @@ export function Admin() {
 
           {/* Chat messages */}
           <div style={{
-            height: 280, overflowY: 'auto', padding: 12, borderRadius: 10,
-            background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)',
-            marginBottom: 8,
+            height: 280, overflowY: 'auto', padding: spacing.md, borderRadius: radius.lg,
+            background: colors.surface, border: `1px solid ${colors.border}`,
+            marginBottom: spacing.sm,
           }}>
             {selectedTeamMsgs.length === 0 ? (
-              <div style={{ textAlign: 'center', color: '#444', fontSize: 13, paddingTop: 40 }}>
+              <div style={{ textAlign: 'center', color: colors.textDisabled, fontSize: typography.base, paddingTop: 40 }}>
                 팀 {selectedChatTeam}의 메시지가 없습니다
               </div>
             ) : (
               selectedTeamMsgs.map((msg, i) => (
                 <div key={msg.id || i} style={{
-                  marginBottom: 8,
+                  marginBottom: spacing.sm,
                   display: 'flex', flexDirection: 'column',
                   alignItems: msg.isAdmin ? 'flex-end' : 'flex-start',
                 }}>
-                  <div style={{ fontSize: 10, color: '#555', marginBottom: 2 }}>
+                  <div style={{ fontSize: typography.xs, color: colors.textMuted, marginBottom: 2 }}>
                     {msg.senderName} · {new Date(msg.timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
                   </div>
                   <div style={{
-                    padding: '7px 11px', borderRadius: 8, maxWidth: '80%',
-                    background: msg.isAdmin ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.06)',
-                    fontSize: 13, lineHeight: 1.5,
+                    padding: `${spacing.xs}px ${spacing.md}px`, borderRadius: radius.md, maxWidth: '80%',
+                    background: msg.isAdmin ? colors.infoBg : colors.surface,
+                    fontSize: typography.base, lineHeight: 1.5,
+                    color: colors.textPrimary,
                   }}>
                     {msg.message}
                   </div>
@@ -830,25 +844,27 @@ export function Admin() {
           </div>
 
           {/* Chat input */}
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: spacing.sm }}>
             <input
               type="text" placeholder={`팀 ${selectedChatTeam}에게 메시지...`}
               value={chatInput}
               onChange={e => setChatInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) sendChat() }}
               style={{
-                flex: 1, padding: '11px 14px', borderRadius: 8,
-                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                color: '#e0e0e0', fontSize: 13, outline: 'none',
-                fontFamily: "'Noto Serif KR', serif",
+                flex: 1, padding: `${spacing.md}px ${spacing.lg}px`, borderRadius: radius.md,
+                background: colors.surface, border: `1px solid ${colors.border}`,
+                color: colors.textPrimary, fontSize: typography.base, outline: 'none',
+                fontFamily: typography.fontFamily,
+                transition: transitions.normal,
               }}
             />
             <button onClick={sendChat} style={{
-              padding: '11px 18px', borderRadius: 8,
-              background: chatInput.trim() ? '#3b82f6' : 'rgba(255,255,255,0.04)',
-              color: chatInput.trim() ? '#fff' : '#444',
+              padding: `${spacing.md}px ${spacing.lg}px`, borderRadius: radius.md,
+              background: chatInput.trim() ? colors.accent : colors.borderLight,
+              color: chatInput.trim() ? colors.bg : colors.textDisabled,
               border: 'none', cursor: chatInput.trim() ? 'pointer' : 'not-allowed',
-              fontSize: 13, fontWeight: 600, fontFamily: "'Noto Serif KR', serif",
+              fontSize: typography.base, fontWeight: typography.semibold, fontFamily: typography.fontFamily,
+              transition: transitions.normal,
             }}>전송</button>
           </div>
         </div>

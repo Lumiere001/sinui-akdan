@@ -10,6 +10,7 @@ import {
   getDirectionBearing,
 } from '../data/gameData'
 import type { Location, PlayerPosition, ChatMessage, TeamStage } from '../../../shared/types'
+import { colors, typography, spacing, radius, shadows, transitions } from '../theme'
 
 const DIRECTION_ARROWS = ['↑', '↗', '→', '↘', '↓', '↙', '←', '↖'] as const
 
@@ -425,43 +426,43 @@ export function Game() {
   // ========== Stage 1 / Stage 1 Ready / Idle Rendering ==========
   if (stage === 'idle' || stage === 'stage1_ready' || stage === 'stage1' || stage === 'stage2_ready') {
     return (
-      <div style={{ background: '#0a0a0f', minHeight: '100vh', color: '#e0e0e0', fontFamily: "'Noto Serif KR', serif", display: 'flex', flexDirection: 'column' }}>
+      <div style={{ background: colors.bg, minHeight: '100vh', color: colors.textPrimary, fontFamily: typography.fontFamily, display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
-        <div style={{ position: 'sticky', top: 0, zIndex: 50, background: '#0a0a0f', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '12px 16px' }}>
+        <div style={{ position: 'sticky', top: 0, zIndex: 50, background: colors.bg, borderBottom: `1px solid ${colors.borderLight}`, padding: `${spacing.md}px ${spacing.lg}px` }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 13, color: '#6fea8d' }}>팀 {teamId}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+              <span style={{ fontSize: typography.sm, color: colors.accent }}>팀 {teamId}</span>
               <span style={{
-                width: 6, height: 6, borderRadius: '50%',
-                background: isConnected ? '#6fea8d' : '#ef4444',
+                width: 6, height: 6, borderRadius: radius.full,
+                background: isConnected ? colors.accent : colors.error,
                 display: 'inline-block',
               }} />
             </div>
-            <span style={{ fontSize: 11, color: '#666' }}>
+            <span style={{ fontSize: typography.sm, color: colors.textSecondary }}>
               {stage === 'idle' ? '대기 중' : stage === 'stage1_ready' ? 'Stage 1 준비' : stage === 'stage2_ready' ? 'Stage 2 준비' : 'Stage 1'}
             </span>
           </div>
         </div>
 
         {/* Main content */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 24px' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: `${spacing.xxxl}px ${spacing.xl}px` }}>
           {stage === 'idle' && (
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 48, marginBottom: 20 }}>🎼</div>
-              <h2 style={{ fontSize: 20, fontWeight: 700, color: '#e0e0e0', marginBottom: 8 }}>신의 악단</h2>
-              <p style={{ fontSize: 14, color: '#666' }}>관리자가 게임을 시작할 때까지 대기해주세요</p>
+              <div style={{ fontSize: 48, marginBottom: spacing.xl }}>🎼</div>
+              <h2 style={{ fontSize: typography.lg, fontWeight: typography.bold, color: colors.textPrimary, marginBottom: spacing.md }}>신의 악단</h2>
+              <p style={{ fontSize: typography.base, color: colors.textSecondary }}>관리자가 게임을 시작할 때까지 대기해주세요</p>
             </div>
           )}
 
           {stage === 'stage1_ready' && (
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 48, marginBottom: 20 }}>🔐</div>
-              <h2 style={{ fontSize: 20, fontWeight: 700, color: '#f59e0b', marginBottom: 8 }}>Stage 1 준비</h2>
-              <p style={{ fontSize: 14, color: '#888' }}>곧 시작됩니다. 준비해주세요!</p>
+              <div style={{ fontSize: 48, marginBottom: spacing.xl }}>🔐</div>
+              <h2 style={{ fontSize: typography.lg, fontWeight: typography.bold, color: colors.warning, marginBottom: spacing.md }}>Stage 1 준비</h2>
+              <p style={{ fontSize: typography.base, color: colors.textMuted }}>곧 시작됩니다. 준비해주세요!</p>
               <div style={{
-                marginTop: 24, fontSize: 64, fontWeight: 700,
-                color: 'rgba(245,158,11,0.3)', fontVariantNumeric: 'tabular-nums',
-                fontFamily: 'monospace',
+                marginTop: spacing.xl, fontSize: typography.timer, fontWeight: typography.bold,
+                color: colors.warningBg, fontVariantNumeric: 'tabular-nums',
+                fontFamily: typography.monoFamily,
               }}>
                 40:00
               </div>
@@ -471,28 +472,28 @@ export function Game() {
           {stage === 'stage1' && (
             <div style={{ textAlign: 'center', width: '100%' }}>
               {/* Timer icon */}
-              <div style={{ fontSize: 36, marginBottom: 16 }}>
+              <div style={{ fontSize: 36, marginBottom: spacing.lg }}>
                 {s1TimerExpired ? '⏰' : s1TimerPaused ? '⏸️' : '🔐'}
               </div>
 
               {/* Stage label */}
-              <div style={{ fontSize: 13, color: '#888', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 }}>
+              <div style={{ fontSize: typography.sm, color: colors.textMuted, letterSpacing: typography.label, textTransform: 'uppercase', marginBottom: spacing.md }}>
                 Stage 1
               </div>
 
               {/* Big timer */}
               <div style={{
-                fontSize: 80, fontWeight: 700, lineHeight: 1,
-                fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace',
-                color: s1TimerExpired ? '#ef4444' : s1TimerPaused ? '#f59e0b' : '#e0e0e0',
-                marginBottom: 16,
+                fontSize: typography.timer, fontWeight: typography.bold, lineHeight: 1,
+                fontVariantNumeric: 'tabular-nums', fontFamily: typography.monoFamily,
+                color: s1TimerExpired ? colors.error : s1TimerPaused ? colors.warning : colors.textPrimary,
+                marginBottom: spacing.lg,
                 animation: s1TimerPaused ? 'pulse 1.5s ease-in-out infinite' : 'none',
               }}>
                 {s1TimerDisplay}
               </div>
 
               {/* Status text */}
-              <div style={{ fontSize: 14, color: '#666' }}>
+              <div style={{ fontSize: typography.base, color: colors.textSecondary }}>
                 {s1TimerExpired ? '시간이 종료되었습니다' : s1TimerPaused ? '일시정지됨' : s1TimerActive ? '진행 중...' : '대기 중'}
               </div>
             </div>
@@ -500,13 +501,13 @@ export function Game() {
 
           {stage === 'stage2_ready' && (
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 48, marginBottom: 20 }}>🗺️</div>
-              <h2 style={{ fontSize: 20, fontWeight: 700, color: '#3b82f6', marginBottom: 8 }}>Stage 2 준비</h2>
-              <p style={{ fontSize: 14, color: '#888' }}>곧 시작됩니다. 준비해주세요!</p>
+              <div style={{ fontSize: 48, marginBottom: spacing.xl }}>🗺️</div>
+              <h2 style={{ fontSize: typography.lg, fontWeight: typography.bold, color: colors.stage2, marginBottom: spacing.md }}>Stage 2 준비</h2>
+              <p style={{ fontSize: typography.base, color: colors.textMuted }}>곧 시작됩니다. 준비해주세요!</p>
               <div style={{
-                marginTop: 24, fontSize: 64, fontWeight: 700,
-                color: 'rgba(59,130,246,0.3)', fontVariantNumeric: 'tabular-nums',
-                fontFamily: 'monospace',
+                marginTop: spacing.xl, fontSize: typography.timer, fontWeight: typography.bold,
+                color: colors.stage2Bg, fontVariantNumeric: 'tabular-nums',
+                fontFamily: typography.monoFamily,
               }}>
                 30:00
               </div>
@@ -518,8 +519,8 @@ export function Game() {
         {errorMsg && (
           <div style={{
             position: 'fixed', top: 60, left: '50%', transform: 'translateX(-50%)',
-            background: 'rgba(239,68,68,0.9)', color: '#fff', padding: '8px 16px',
-            borderRadius: 8, fontSize: 13, zIndex: 100,
+            background: colors.error, color: colors.textPrimary, padding: `${spacing.sm}px ${spacing.lg}px`,
+            borderRadius: radius.md, fontSize: typography.sm, zIndex: 100,
           }}>
             {errorMsg}
           </div>
@@ -527,81 +528,81 @@ export function Game() {
 
         {/* Chat (always available for representative) */}
         {isRepresentative && (
-          <div style={{ position: 'fixed', bottom: 16, right: 16, zIndex: 110 }}>
+          <div style={{ position: 'fixed', bottom: spacing.lg, right: spacing.lg, zIndex: 110 }}>
             {!chatOpen && (
               <button
                 onClick={() => setChatOpen(true)}
                 style={{
-                  width: 52, height: 52, borderRadius: '50%',
-                  background: '#6fea8d', color: '#0a0a0f',
+                  width: 52, height: 52, borderRadius: radius.full,
+                  background: colors.accent, color: colors.bg,
                   border: 'none', cursor: 'pointer',
                   fontSize: 22, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 4px 16px rgba(111,234,141,0.3)', position: 'relative',
+                  boxShadow: shadows.accent, position: 'relative',
                 }}>
                 💬
                 {unreadCount > 0 && (
                   <span style={{
                     position: 'absolute', top: -4, right: -4,
-                    background: '#ef4444', color: '#fff', borderRadius: '50%',
+                    background: colors.error, color: colors.textPrimary, borderRadius: radius.full,
                     width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 11, fontWeight: 700,
+                    fontSize: typography.xs, fontWeight: typography.bold,
                   }}>{unreadCount}</span>
                 )}
               </button>
             )}
             {chatOpen && (
               <div style={{
-                width: 300, height: 400, borderRadius: 16,
-                background: '#111318', border: '1px solid rgba(111,234,141,0.15)',
+                width: 300, height: 400, borderRadius: radius.xl,
+                background: colors.bg, border: `1px solid ${colors.accentBorder}`,
                 display: 'flex', flexDirection: 'column', overflow: 'hidden',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                boxShadow: shadows.lg,
               }}>
                 <div style={{
-                  padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)',
+                  padding: `${spacing.sm}px ${spacing.md}px`, borderBottom: `1px solid ${colors.borderLight}`,
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#6fea8d' }}>관리자 채팅</span>
+                  <span style={{ fontSize: typography.sm, fontWeight: typography.semibold, color: colors.accent }}>관리자 채팅</span>
                   <button onClick={() => setChatOpen(false)} style={{
-                    background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: 16,
+                    background: 'none', border: 'none', color: colors.textSecondary, cursor: 'pointer', fontSize: 16,
                   }}>✕</button>
                 </div>
-                <div style={{ flex: 1, overflowY: 'auto', padding: 10 }}>
+                <div style={{ flex: 1, overflowY: 'auto', padding: spacing.md }}>
                   {chatMessages.map((msg, i) => (
                     <div key={msg.id || i} style={{
-                      marginBottom: 8, display: 'flex', flexDirection: 'column',
+                      marginBottom: spacing.sm, display: 'flex', flexDirection: 'column',
                       alignItems: msg.isAdmin ? 'flex-start' : 'flex-end',
                     }}>
-                      <div style={{ fontSize: 9, color: '#555', marginBottom: 2 }}>
+                      <div style={{ fontSize: typography.xs, color: colors.textDisabled, marginBottom: 2 }}>
                         {msg.isAdmin ? '관리자' : msg.senderName}
                       </div>
                       <div style={{
-                        padding: '7px 11px', borderRadius: 10, maxWidth: '80%',
-                        background: msg.isAdmin ? 'rgba(111,234,141,0.1)' : 'rgba(255,255,255,0.06)',
-                        fontSize: 13, lineHeight: 1.4,
+                        padding: '7px 11px', borderRadius: radius.md, maxWidth: '80%',
+                        background: msg.isAdmin ? colors.accentMuted : colors.borderLight,
+                        fontSize: typography.sm, lineHeight: 1.4,
                       }}>{msg.message}</div>
                     </div>
                   ))}
                   <div ref={chatEndRef} />
                 </div>
-                <div style={{ padding: 8, borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: 6 }}>
+                <div style={{ padding: spacing.sm, borderTop: `1px solid ${colors.borderLight}`, display: 'flex', gap: spacing.xs }}>
                   <input
                     value={chatInput}
                     onChange={e => setChatInput(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) sendChatMessage() }}
                     placeholder="메시지 입력..."
                     style={{
-                      flex: 1, padding: '8px 10px', borderRadius: 8,
-                      background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
-                      color: '#e0e0e0', fontSize: 12, outline: 'none',
-                      fontFamily: "'Noto Serif KR', serif",
+                      flex: 1, padding: `${spacing.sm}px ${spacing.md}px`, borderRadius: radius.md,
+                      background: colors.borderLight, border: `1px solid ${colors.border}`,
+                      color: colors.textPrimary, fontSize: typography.sm, outline: 'none',
+                      fontFamily: typography.fontFamily,
                     }}
                   />
                   <button onClick={sendChatMessage} style={{
-                    padding: '8px 12px', borderRadius: 8,
-                    background: chatInput.trim() ? '#6fea8d' : 'rgba(255,255,255,0.04)',
-                    color: chatInput.trim() ? '#0a0a0f' : '#444',
+                    padding: `${spacing.sm}px ${spacing.md}px`, borderRadius: radius.md,
+                    background: chatInput.trim() ? colors.accent : colors.borderLight,
+                    color: chatInput.trim() ? colors.bg : colors.textDisabled,
                     border: 'none', cursor: chatInput.trim() ? 'pointer' : 'default',
-                    fontSize: 12, fontWeight: 600, fontFamily: "'Noto Serif KR', serif",
+                    fontSize: typography.sm, fontWeight: typography.semibold, fontFamily: typography.fontFamily,
                   }}>전송</button>
                 </div>
               </div>
@@ -614,22 +615,22 @@ export function Game() {
 
   // ========== Stage 2 (existing game view) ==========
   return (
-    <div style={{ background: '#0a0a0f', minHeight: '100vh', color: '#e0e0e0', fontFamily: "'Noto Serif KR', serif" }}>
+    <div style={{ background: colors.bg, minHeight: '100vh', color: colors.textPrimary, fontFamily: typography.fontFamily }}>
       {/* Header */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 50, background: '#0a0a0f', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '12px 16px' }}>
+      <div style={{ position: 'sticky', top: 0, zIndex: 50, background: colors.bg, borderBottom: `1px solid ${colors.borderLight}`, padding: `${spacing.md}px ${spacing.lg}px` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 13, color: '#6fea8d' }}>팀 {teamId}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+            <span style={{ fontSize: typography.sm, color: colors.accent }}>팀 {teamId}</span>
             <span style={{
-              width: 6, height: 6, borderRadius: '50%',
-              background: isConnected ? '#6fea8d' : '#ef4444',
+              width: 6, height: 6, borderRadius: radius.full,
+              background: isConnected ? colors.accent : colors.error,
               display: 'inline-block',
             }} />
           </div>
           <span style={{
-            fontSize: 13, color: isTimerPaused ? '#f59e0b' : '#f59e0b', fontVariantNumeric: 'tabular-nums',
-            background: isTimerPaused ? 'rgba(245,158,11,0.15)' : 'rgba(245,158,11,0.1)',
-            padding: '4px 10px', borderRadius: 6,
+            fontSize: typography.sm, color: colors.warning, fontVariantNumeric: 'tabular-nums',
+            background: isTimerPaused ? colors.warningBg : colors.warningBorder,
+            padding: `${spacing.xs}px ${spacing.md}px`, borderRadius: radius.sm,
             animation: isTimerPaused ? 'pulse 1.5s ease-in-out infinite' : 'none',
           }}>
             {isTimerPaused ? '⏸' : '⏱'} {timerDisplay}
@@ -639,26 +640,26 @@ export function Game() {
 
       {/* GPS error */}
       {gpsError && (
-        <div style={{ background: 'rgba(239,68,68,0.1)', borderBottom: '1px solid rgba(239,68,68,0.2)', padding: '8px 16px', fontSize: 12, color: '#f87171' }}>
+        <div style={{ background: colors.errorBg, borderBottom: `1px solid ${colors.errorBorder}`, padding: `${spacing.sm}px ${spacing.lg}px`, fontSize: typography.sm, color: colors.error }}>
           {gpsError}
         </div>
       )}
 
       {/* Error message */}
       {errorMsg && (
-        <div style={{ background: 'rgba(251,191,36,0.1)', borderBottom: '1px solid rgba(251,191,36,0.2)', padding: '8px 16px', fontSize: 12, color: '#ffc832' }}>
+        <div style={{ background: colors.warningBg, borderBottom: `1px solid ${colors.warningBorder}`, padding: `${spacing.sm}px ${spacing.lg}px`, fontSize: typography.sm, color: colors.warning }}>
           {errorMsg}
         </div>
       )}
 
       {/* Waiting state */}
       {currentStep === 0 && !isTimerExpired && (
-        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '40px 16px', textAlign: 'center' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>
+        <div style={{ background: colors.borderLight, padding: `${spacing.xxxl}px ${spacing.lg}px`, textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: spacing.lg }}>⏳</div>
+          <div style={{ fontSize: typography.md, fontWeight: typography.semibold, color: colors.textSecondary, marginBottom: spacing.md }}>
             관리자가 타이머를 시작하면
           </div>
-          <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)' }}>
+          <div style={{ fontSize: typography.base, color: colors.textMuted }}>
             게임이 시작됩니다
           </div>
         </div>
@@ -668,40 +669,40 @@ export function Game() {
       {isTimerExpired && !isComplete && showTimeoutOverlay && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 100,
-          background: 'rgba(10,10,15,0.95)',
+          background: `rgba(0,0,0,0.95)`,
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          padding: 32,
+          padding: spacing.xxxl,
         }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>⏰</div>
-          <h2 style={{ fontSize: 24, fontWeight: 700, color: '#f87171', marginBottom: 8 }}>시간 초과</h2>
-          <p style={{ fontSize: 13, color: '#888', marginBottom: 20 }}>30분이 경과했습니다</p>
+          <div style={{ fontSize: 48, marginBottom: spacing.lg }}>⏰</div>
+          <h2 style={{ fontSize: typography.xl, fontWeight: typography.bold, color: colors.error, marginBottom: spacing.md }}>시간 초과</h2>
+          <p style={{ fontSize: typography.sm, color: colors.textMuted, marginBottom: spacing.xl }}>30분이 경과했습니다</p>
 
           {/* Progress bar */}
-          <div style={{ width: '100%', maxWidth: 300, marginBottom: 20 }}>
+          <div style={{ width: '100%', maxWidth: 300, marginBottom: spacing.xl }}>
             <div style={{
-              height: 8, background: 'rgba(255,255,255,0.06)', borderRadius: 4,
-              overflow: 'hidden', marginBottom: 8,
+              height: 8, background: colors.borderLight, borderRadius: radius.sm,
+              overflow: 'hidden', marginBottom: spacing.md,
             }}>
               <div style={{
-                height: '100%', borderRadius: 4, background: '#6fea8d',
+                height: '100%', borderRadius: radius.sm, background: colors.accent,
                 width: `${Math.round((completedSteps.length / 3) * 100)}%`,
               }} />
             </div>
-            <div style={{ fontSize: 12, color: '#888', textAlign: 'center' }}>
+            <div style={{ fontSize: typography.sm, color: colors.textMuted, textAlign: 'center' }}>
               3단계 중 {completedSteps.length}단계까지 완료
             </div>
           </div>
 
           {/* CCC Center notice */}
           <div style={{
-            background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
-            borderRadius: 12, padding: 16, marginBottom: 20,
+            background: colors.warningBg, border: `1px solid ${colors.warningBorder}`,
+            borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.xl,
             width: '100%', maxWidth: 300,
           }}>
-            <div style={{ fontSize: 14, color: '#f59e0b', fontWeight: 600, marginBottom: 4 }}>
+            <div style={{ fontSize: typography.base, color: colors.warning, fontWeight: typography.semibold, marginBottom: spacing.xs }}>
               📍 CCC 센터로 오세요!
             </div>
-            <div style={{ fontSize: 12, color: '#aaa' }}>
+            <div style={{ fontSize: typography.sm, color: colors.textSecondary }}>
               시간이 종료되었습니다<br />센터로 돌아와 주세요
             </div>
           </div>
@@ -709,10 +710,11 @@ export function Game() {
           <button
             onClick={() => setShowTimeoutOverlay(false)}
             style={{
-              padding: '14px 40px', borderRadius: 10, fontSize: 14,
-              background: 'transparent', border: '1px solid rgba(255,255,255,0.06)',
-              color: '#888', cursor: 'pointer', fontFamily: "'Noto Serif KR', serif",
+              padding: `${spacing.lg}px ${spacing.xxxl}px`, borderRadius: radius.pill, fontSize: typography.base,
+              background: 'transparent', border: `1px solid ${colors.border}`,
+              color: colors.textSecondary, cursor: 'pointer', fontFamily: typography.fontFamily,
               maxWidth: 300, width: '100%',
+              transition: transitions.normal,
             }}
           >
             확인
@@ -722,19 +724,19 @@ export function Game() {
 
       {/* Waiting state when timer expired (after dismissing overlay) */}
       {isTimerExpired && !isComplete && !showTimeoutOverlay && (
-        <div style={{ padding: '40px 16px', textAlign: 'center' }}>
-          <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.6 }}>⏰</div>
-          <div style={{ fontSize: 20, fontWeight: 600, color: '#ccc', marginBottom: 8 }}>
+        <div style={{ padding: `${spacing.xxxl}px ${spacing.lg}px`, textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: spacing.lg, opacity: 0.6 }}>⏰</div>
+          <div style={{ fontSize: typography.lg, fontWeight: typography.semibold, color: colors.textSecondary, marginBottom: spacing.md }}>
             임무 종료
           </div>
-          <div style={{ fontSize: 13, color: '#666', lineHeight: 1.6, marginBottom: 32 }}>
+          <div style={{ fontSize: typography.sm, color: colors.textMuted, lineHeight: 1.6, marginBottom: spacing.xxxl }}>
             시간이 종료되었습니다<br />관리자의 안내를 기다려주세요
           </div>
           <div style={{
-            background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
-            borderRadius: 12, padding: 16, maxWidth: 280, margin: '0 auto',
+            background: colors.warningBg, border: `1px solid ${colors.warningBorder}`,
+            borderRadius: radius.lg, padding: spacing.lg, maxWidth: 280, margin: '0 auto',
           }}>
-            <div style={{ fontSize: 14, color: '#f59e0b', fontWeight: 600 }}>
+            <div style={{ fontSize: typography.base, color: colors.warning, fontWeight: typography.semibold }}>
               📍 CCC 센터로 오세요!
             </div>
           </div>
@@ -745,21 +747,22 @@ export function Game() {
       {currentStep > 0 && currentStep <= 3 && !isTimerExpired && (
         <>
           {/* Stage indicator dots */}
-          <div style={{ textAlign: 'center', margin: '16px 0' }}>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 12 }}>
+          <div style={{ textAlign: 'center', margin: `${spacing.lg}px 0` }}>
+            <div style={{ display: 'flex', gap: spacing.md, justifyContent: 'center', marginBottom: spacing.md }}>
               {[1, 2, 3].map(step => {
                 const isCompleted = completedSteps.includes(step)
                 const isCurrent = step === currentStep && !isComplete
                 return (
                   <div key={step} style={{
-                    width: 10, height: 10, borderRadius: '50%',
-                    background: isCompleted ? '#6fea8d' : isCurrent ? '#f59e0b' : 'rgba(255,255,255,0.1)',
-                    boxShadow: isCurrent ? '0 0 8px rgba(245,158,11,0.5)' : 'none',
+                    width: 10, height: 10, borderRadius: radius.full,
+                    background: isCompleted ? colors.accent : isCurrent ? colors.warning : colors.border,
+                    boxShadow: isCurrent ? `0 0 8px ${colors.warningBorder}` : 'none',
+                    transition: transitions.normal,
                   }} />
                 )
               })}
             </div>
-            <div style={{ fontSize: 12, color: '#888' }}>{currentStep}단계 / 3단계</div>
+            <div style={{ fontSize: typography.sm, color: colors.textMuted }}>{currentStep}단계 / 3단계</div>
           </div>
 
           {/* Map */}
@@ -773,16 +776,16 @@ export function Game() {
           </div>
 
           {/* Hint */}
-          <div style={{ padding: '12px 16px' }}>
+          <div style={{ padding: `${spacing.md}px ${spacing.lg}px` }}>
             <HintCard hint={hint} />
           </div>
 
           {/* Location cards - horizontal */}
-          <div style={{ padding: '0 16px' }}>
-            <div style={{ fontSize: 12, color: '#888', textAlign: 'center', marginBottom: 10 }}>
+          <div style={{ padding: `0 ${spacing.lg}px` }}>
+            <div style={{ fontSize: typography.sm, color: colors.textMuted, textAlign: 'center', marginBottom: spacing.md }}>
               후보 장소를 선택하여 이동하세요
             </div>
-            <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+            <div style={{ display: 'flex', gap: spacing.md, marginBottom: spacing.lg }}>
               {visibleLocations.map(loc => {
                 const info = getLocationInfo(loc)
                 const isWrongGuess = showWrong?.locationId === loc.id
@@ -793,35 +796,35 @@ export function Game() {
                     onClick={() => handleCheckLocation(loc.id)}
                     disabled={isComplete || !isTimerActive || isTimerPaused}
                     style={{
-                      flex: 1, textAlign: 'center', padding: 14,
-                      borderRadius: 10,
+                      flex: 1, textAlign: 'center', padding: spacing.lg,
+                      borderRadius: radius.md,
                       background: isWrongGuess
-                        ? 'rgba(239,68,68,0.08)'
+                        ? colors.errorBg
                         : info.status === 'inside'
-                        ? 'rgba(111,234,141,0.05)'
-                        : 'rgba(255,255,255,0.03)',
+                        ? colors.accentMuted
+                        : colors.borderLight,
                       border: `1px solid ${
-                        isWrongGuess ? 'rgba(239,68,68,0.3)'
-                        : info.status === 'inside' ? 'rgba(111,234,141,0.3)'
-                        : 'rgba(255,255,255,0.08)'
+                        isWrongGuess ? colors.errorBorder
+                        : info.status === 'inside' ? colors.accentBorder
+                        : colors.border
                       }`,
-                      color: '#e0e0e0', cursor: 'pointer',
-                      fontFamily: "'Noto Serif KR', serif",
-                      transition: 'all 0.2s',
+                      color: colors.textPrimary, cursor: 'pointer',
+                      fontFamily: typography.fontFamily,
+                      transition: transitions.normal,
                     }}
                   >
-                    <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: '#eee' }}>{loc.name}</div>
-                    <div style={{ fontSize: 11, color: '#888' }}>
+                    <div style={{ fontSize: typography.base, fontWeight: typography.semibold, marginBottom: spacing.xs, color: colors.textPrimary }}>{loc.name}</div>
+                    <div style={{ fontSize: typography.xs, color: colors.textMuted }}>
                       {info.distance !== null ? `${formatDistance(info.distance)} 거리` : '거리 계산 중'}
                     </div>
                     {info.status === 'inside' && (
-                      <div style={{ fontSize: 11, color: '#6fea8d', marginTop: 4 }}>도착!</div>
+                      <div style={{ fontSize: typography.xs, color: colors.accent, marginTop: spacing.xs }}>도착!</div>
                     )}
                     {info.status === 'approaching' && (
-                      <div style={{ fontSize: 11, color: '#ffc832', marginTop: 4 }}>접근 중</div>
+                      <div style={{ fontSize: typography.xs, color: colors.warning, marginTop: spacing.xs }}>접근 중</div>
                     )}
                     {isWrongGuess && (
-                      <div style={{ fontSize: 11, color: '#f87171', marginTop: 4 }}>오답</div>
+                      <div style={{ fontSize: typography.xs, color: colors.error, marginTop: spacing.xs }}>오답</div>
                     )}
                   </button>
                 )
@@ -830,7 +833,7 @@ export function Game() {
           </div>
 
           {/* Member count bar */}
-          <div style={{ padding: '0 16px 24px' }}>
+          <div style={{ padding: `0 ${spacing.lg}px ${spacing.xl}px` }}>
             {(() => {
               // Find the best member count data from either location
               const counts = visibleLocations
@@ -844,10 +847,11 @@ export function Game() {
               const unlocked = count >= needed
               return (
                 <div style={{
-                  textAlign: 'center', fontSize: 12, color: '#888',
-                  padding: 8, background: 'rgba(255,255,255,0.02)', borderRadius: 8,
+                  textAlign: 'center', fontSize: typography.sm, color: colors.textMuted,
+                  padding: spacing.sm, background: colors.borderLight, borderRadius: radius.md,
+                  transition: transitions.normal,
                 }}>
-                  현재 위치 근처 팀원: <span style={{ color: '#6fea8d', fontWeight: 600 }}>
+                  현재 위치 근처 팀원: <span style={{ color: colors.accent, fontWeight: typography.semibold }}>
                     {count}/{needed}
                   </span>명{unlocked && ' ✅ 해금 가능!'}
                 </div>
@@ -861,28 +865,29 @@ export function Game() {
       {showStepComplete && !showComplete && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 90,
-          background: 'rgba(10,10,15,0.95)',
+          background: `rgba(0,0,0,0.95)`,
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          padding: 32,
+          padding: spacing.xxxl,
         }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🎶</div>
-          <h2 style={{ fontSize: 24, fontWeight: 700, color: '#6fea8d', marginBottom: 8 }}>
+          <div style={{ fontSize: 48, marginBottom: spacing.lg }}>🎶</div>
+          <h2 style={{ fontSize: typography.xl, fontWeight: typography.bold, color: colors.accent, marginBottom: spacing.md }}>
             {showStepComplete.stepNumber}단계 통과!
           </h2>
-          <p style={{ fontSize: 13, color: '#888', marginBottom: 20 }}>
+          <p style={{ fontSize: typography.sm, color: colors.textMuted, marginBottom: spacing.xl }}>
             다음 장소를 향해 출발하세요
           </p>
 
           {/* Stage indicator dots */}
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 20 }}>
+          <div style={{ display: 'flex', gap: spacing.md, justifyContent: 'center', marginBottom: spacing.xl }}>
             {[1, 2, 3].map(step => {
               const isStepCompleted = completedSteps.includes(step)
               const isCurrent = step === currentStep && !isComplete
               return (
                 <div key={step} style={{
-                  width: 10, height: 10, borderRadius: '50%',
-                  background: isStepCompleted ? '#6fea8d' : isCurrent ? '#f59e0b' : 'rgba(255,255,255,0.1)',
-                  boxShadow: isCurrent ? '0 0 8px rgba(245,158,11,0.5)' : 'none',
+                  width: 10, height: 10, borderRadius: radius.full,
+                  background: isStepCompleted ? colors.accent : isCurrent ? colors.warning : colors.border,
+                  boxShadow: isCurrent ? `0 0 8px ${colors.warningBorder}` : 'none',
+                  transition: transitions.normal,
                 }} />
               )
             })}
@@ -890,9 +895,9 @@ export function Game() {
 
           {showStepComplete.photo && (
             <div style={{
-              width: '100%', maxWidth: 280, aspectRatio: '4/3', borderRadius: 12,
-              overflow: 'hidden', marginBottom: 20,
-              border: '1px solid rgba(111,234,141,0.2)',
+              width: '100%', maxWidth: 280, aspectRatio: '4/3', borderRadius: radius.lg,
+              overflow: 'hidden', marginBottom: spacing.xl,
+              border: `1px solid ${colors.accentBorder}`,
             }}>
               <img src={`/${showStepComplete.photo}`} alt="악보 조각" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
@@ -900,10 +905,11 @@ export function Game() {
           <button
             onClick={() => setShowStepComplete(null)}
             style={{
-              padding: '14px 40px', borderRadius: 10, fontSize: 14, fontWeight: 700,
-              background: '#6fea8d', color: '#0a0a0f', border: 'none', cursor: 'pointer',
-              fontFamily: "'Noto Serif KR', serif",
+              padding: `${spacing.lg}px ${spacing.xxxl}px`, borderRadius: radius.pill, fontSize: typography.base, fontWeight: typography.bold,
+              background: colors.accent, color: colors.bg, border: 'none', cursor: 'pointer',
+              fontFamily: typography.fontFamily,
               maxWidth: 300, width: '100%',
+              transition: transitions.normal,
             }}
           >
             다음 단계로
@@ -915,20 +921,20 @@ export function Game() {
       {showWrong && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 80,
-          background: 'rgba(10,10,15,0.95)',
+          background: `rgba(0,0,0,0.95)`,
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          padding: 32,
+          padding: spacing.xxxl,
         }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>❌</div>
-          <h2 style={{ fontSize: 24, fontWeight: 700, color: '#f87171', marginBottom: 8 }}>이곳이 아닙니다</h2>
-          <p style={{ fontSize: 13, color: '#888', marginBottom: 20 }}>다른 장소를 찾아보세요</p>
+          <div style={{ fontSize: 48, marginBottom: spacing.lg }}>❌</div>
+          <h2 style={{ fontSize: typography.xl, fontWeight: typography.bold, color: colors.error, marginBottom: spacing.md }}>이곳이 아닙니다</h2>
+          <p style={{ fontSize: typography.sm, color: colors.textMuted, marginBottom: spacing.xl }}>다른 장소를 찾아보세요</p>
           {showWrong.photo && (
             <div style={{
-              width: '100%', maxWidth: 280, aspectRatio: '4/3', borderRadius: 12,
-              overflow: 'hidden', marginBottom: 20,
-              border: '1px solid rgba(239,68,68,0.2)',
+              width: '100%', maxWidth: 280, aspectRatio: '4/3', borderRadius: radius.lg,
+              overflow: 'hidden', marginBottom: spacing.xl,
+              border: `1px solid ${colors.errorBorder}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: 'rgba(255,255,255,0.05)',
+              background: colors.borderLight,
             }}>
               <img src={`/${showWrong.photo}`} alt="오답" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
@@ -936,10 +942,11 @@ export function Game() {
           <button
             onClick={() => setShowWrong(null)}
             style={{
-              padding: '14px 40px', borderRadius: 10, fontSize: 14, fontWeight: 700,
-              background: 'rgba(239,68,68,0.8)', color: '#fff', border: 'none', cursor: 'pointer',
-              fontFamily: "'Noto Serif KR', serif",
+              padding: `${spacing.lg}px ${spacing.xxxl}px`, borderRadius: radius.pill, fontSize: typography.base, fontWeight: typography.bold,
+              background: colors.error, color: colors.textPrimary, border: 'none', cursor: 'pointer',
+              fontFamily: typography.fontFamily,
               maxWidth: 300, width: '100%',
+              transition: transitions.normal,
             }}
           >
             다른 장소로 이동
@@ -951,33 +958,34 @@ export function Game() {
       {showComplete && showCompleteOverlay && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 100,
-          background: 'rgba(10,10,15,0.95)',
+          background: `rgba(0,0,0,0.95)`,
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          padding: 32,
+          padding: spacing.xxxl,
         }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🏆</div>
-          <h2 style={{ fontSize: 24, fontWeight: 700, color: '#f59e0b', marginBottom: 8 }}>
+          <div style={{ fontSize: 48, marginBottom: spacing.lg }}>🏆</div>
+          <h2 style={{ fontSize: typography.xl, fontWeight: typography.bold, color: colors.warning, marginBottom: spacing.md }}>
             임무 완료!
           </h2>
-          <p style={{ fontSize: 13, color: '#888', marginBottom: 20 }}>
+          <p style={{ fontSize: typography.sm, color: colors.textMuted, marginBottom: spacing.xl }}>
             모든 악보 조각을 찾았습니다
           </p>
 
           {/* Stage indicator dots - all completed */}
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 20 }}>
+          <div style={{ display: 'flex', gap: spacing.md, justifyContent: 'center', marginBottom: spacing.xl }}>
             {[1, 2, 3].map(step => (
               <div key={step} style={{
-                width: 10, height: 10, borderRadius: '50%',
-                background: '#6fea8d',
+                width: 10, height: 10, borderRadius: radius.full,
+                background: colors.accent,
+                transition: transitions.normal,
               }} />
             ))}
           </div>
 
           {showComplete.photo && (
             <div style={{
-              width: '100%', maxWidth: 280, aspectRatio: '4/3', borderRadius: 12,
-              overflow: 'hidden', marginBottom: 20,
-              border: '1px solid rgba(245,158,11,0.2)',
+              width: '100%', maxWidth: 280, aspectRatio: '4/3', borderRadius: radius.lg,
+              overflow: 'hidden', marginBottom: spacing.xl,
+              border: `1px solid ${colors.warningBorder}`,
             }}>
               <img src={`/${showComplete.photo}`} alt="완성된 악보" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
@@ -985,11 +993,11 @@ export function Game() {
 
           {/* CCC Center notice */}
           <div style={{
-            background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
-            borderRadius: 12, padding: 16, marginBottom: 20,
+            background: colors.warningBg, border: `1px solid ${colors.warningBorder}`,
+            borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.xl,
             width: '100%', maxWidth: 300,
           }}>
-            <div style={{ fontSize: 14, color: '#f59e0b', fontWeight: 600 }}>
+            <div style={{ fontSize: typography.base, color: colors.warning, fontWeight: typography.semibold }}>
               📍 CCC 센터로 오세요!
             </div>
           </div>
@@ -997,10 +1005,11 @@ export function Game() {
           <button
             onClick={() => setShowCompleteOverlay(false)}
             style={{
-              padding: '14px 40px', borderRadius: 10, fontSize: 14, fontWeight: 700,
-              background: '#6fea8d', color: '#0a0a0f', border: 'none', cursor: 'pointer',
-              fontFamily: "'Noto Serif KR', serif",
+              padding: `${spacing.lg}px ${spacing.xxxl}px`, borderRadius: radius.pill, fontSize: typography.base, fontWeight: typography.bold,
+              background: colors.accent, color: colors.bg, border: 'none', cursor: 'pointer',
+              fontFamily: typography.fontFamily,
               maxWidth: 300, width: '100%',
+              transition: transitions.normal,
             }}
           >
             확인
@@ -1010,19 +1019,19 @@ export function Game() {
 
       {/* Waiting state when game is complete (after dismissing overlay) */}
       {isComplete && !showCompleteOverlay && (
-        <div style={{ padding: '40px 16px', textAlign: 'center' }}>
-          <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.6 }}>🏆</div>
-          <div style={{ fontSize: 20, fontWeight: 600, color: '#ccc', marginBottom: 8 }}>
+        <div style={{ padding: `${spacing.xxxl}px ${spacing.lg}px`, textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: spacing.lg, opacity: 0.6 }}>🏆</div>
+          <div style={{ fontSize: typography.lg, fontWeight: typography.semibold, color: colors.textSecondary, marginBottom: spacing.md }}>
             임무 완료
           </div>
-          <div style={{ fontSize: 13, color: '#666', lineHeight: 1.6, marginBottom: 32 }}>
+          <div style={{ fontSize: typography.sm, color: colors.textMuted, lineHeight: 1.6, marginBottom: spacing.xxxl }}>
             모든 악보 조각을 찾았습니다<br />관리자의 안내를 기다려주세요
           </div>
           <div style={{
-            background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
-            borderRadius: 12, padding: 16, maxWidth: 280, margin: '0 auto',
+            background: colors.warningBg, border: `1px solid ${colors.warningBorder}`,
+            borderRadius: radius.lg, padding: spacing.lg, maxWidth: 280, margin: '0 auto',
           }}>
-            <div style={{ fontSize: 14, color: '#f59e0b', fontWeight: 600 }}>
+            <div style={{ fontSize: typography.base, color: colors.warning, fontWeight: typography.semibold }}>
               📍 CCC 센터로 오세요!
             </div>
           </div>
@@ -1037,20 +1046,21 @@ export function Game() {
             <button
               onClick={() => setChatOpen(true)}
               style={{
-                position: 'fixed', bottom: 24, right: 24, zIndex: 110,
-                width: 50, height: 50, borderRadius: '50%',
-                background: '#6fea8d', color: '#0a0a0f', border: 'none',
+                position: 'fixed', bottom: spacing.xl, right: spacing.xl, zIndex: 110,
+                width: 50, height: 50, borderRadius: radius.full,
+                background: colors.accent, color: colors.bg, border: 'none',
                 fontSize: 22, cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(111,234,141,0.3)',
+                boxShadow: shadows.accent,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: transitions.normal,
               }}
             >
               💬
               {unreadCount > 0 && (
                 <span style={{
                   position: 'absolute', top: -2, right: -2,
-                  background: '#ef4444', color: '#fff', fontSize: 11, fontWeight: 700,
-                  width: 20, height: 20, borderRadius: '50%',
+                  background: colors.error, color: colors.textPrimary, fontSize: typography.xs, fontWeight: typography.bold,
+                  width: 20, height: 20, borderRadius: radius.full,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
                   {unreadCount}
@@ -1062,49 +1072,52 @@ export function Game() {
           {/* Chat panel */}
           {chatOpen && (
             <div style={{
-              position: 'fixed', bottom: 80, right: 20, zIndex: 110,
+              position: 'fixed', bottom: 80, right: spacing.lg, zIndex: 110,
               width: 300, height: 400,
-              background: '#0a0a0f',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 16,
+              background: colors.bg,
+              border: `1px solid ${colors.border}`,
+              borderRadius: radius.xl,
               display: 'flex', flexDirection: 'column',
               overflow: 'hidden',
-              fontFamily: "'Noto Serif KR', serif",
+              fontFamily: typography.fontFamily,
+              boxShadow: shadows.lg,
             }}>
               {/* Chat header */}
               <div style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '14px 16px',
-                background: 'rgba(111,234,141,0.08)',
-                borderBottom: '1px solid rgba(255,255,255,0.06)',
+                padding: `${spacing.md}px ${spacing.lg}px`,
+                background: colors.accentMuted,
+                borderBottom: `1px solid ${colors.borderLight}`,
               }}>
-                <span style={{ fontSize: 14, fontWeight: 600, color: '#6fea8d' }}>관리자 채팅</span>
+                <span style={{ fontSize: typography.base, fontWeight: typography.semibold, color: colors.accent }}>관리자 채팅</span>
                 <button
                   onClick={() => setChatOpen(false)}
                   style={{
-                    background: 'none', border: 'none', color: '#888',
+                    background: 'none', border: 'none', color: colors.textMuted,
                     fontSize: 18, cursor: 'pointer',
+                    transition: transitions.normal,
                   }}
                 >✕</button>
               </div>
 
               {/* Messages */}
-              <div style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ flex: 1, overflowY: 'auto', padding: spacing.md, display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
                 {chatMessages.length === 0 ? (
-                  <div style={{ textAlign: 'center', color: '#444', fontSize: 13, paddingTop: 30 }}>
+                  <div style={{ textAlign: 'center', color: colors.textDisabled, fontSize: typography.sm, paddingTop: 30 }}>
                     관리자에게 메시지를 보내보세요
                   </div>
                 ) : (
                   chatMessages.map((msg, i) => (
                     <div key={msg.id || i} style={{
-                      maxWidth: '80%', padding: '8px 12px', borderRadius: 12,
+                      maxWidth: '80%', padding: `${spacing.sm}px ${spacing.md}px`, borderRadius: radius.md,
                       alignSelf: msg.isAdmin ? 'flex-start' : 'flex-end',
-                      background: msg.isAdmin ? 'rgba(255,255,255,0.06)' : 'rgba(111,234,141,0.15)',
-                      borderBottomLeftRadius: msg.isAdmin ? 4 : 12,
-                      borderBottomRightRadius: msg.isAdmin ? 12 : 4,
-                      fontSize: 13, lineHeight: 1.4, color: msg.isAdmin ? '#ccc' : '#ddd',
+                      background: msg.isAdmin ? colors.borderLight : colors.accentMuted,
+                      borderBottomLeftRadius: msg.isAdmin ? radius.sm : radius.md,
+                      borderBottomRightRadius: msg.isAdmin ? radius.md : radius.sm,
+                      fontSize: typography.sm, lineHeight: 1.4, color: msg.isAdmin ? colors.textSecondary : colors.textPrimary,
+                      transition: transitions.normal,
                     }}>
-                      <div style={{ fontSize: 10, color: '#888', marginBottom: 2 }}>
+                      <div style={{ fontSize: typography.xs, color: colors.textMuted, marginBottom: spacing.xs }}>
                         {msg.senderName}
                       </div>
                       {msg.message}
@@ -1115,24 +1128,26 @@ export function Game() {
               </div>
 
               {/* Input */}
-              <div style={{ display: 'flex', gap: 8, padding: 10, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ display: 'flex', gap: spacing.sm, padding: spacing.md, borderTop: `1px solid ${colors.borderLight}` }}>
                 <input
                   type="text" placeholder="메시지 입력..."
                   value={chatInput}
                   onChange={e => setChatInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) sendChatMessage() }}
                   style={{
-                    flex: 1, padding: '10px 12px', borderRadius: 8,
-                    background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-                    color: '#fff', fontSize: 13, outline: 'none',
+                    flex: 1, padding: `${spacing.sm}px ${spacing.md}px`, borderRadius: radius.md,
+                    background: colors.borderLight, border: `1px solid ${colors.border}`,
+                    color: colors.textPrimary, fontSize: typography.sm, outline: 'none',
                     fontFamily: 'inherit',
+                    transition: transitions.normal,
                   }}
                 />
                 <button onClick={sendChatMessage} style={{
-                  padding: '10px 14px', borderRadius: 8,
-                  background: '#6fea8d', color: '#0a0a0f', border: 'none',
-                  fontWeight: 700, cursor: 'pointer', fontSize: 13,
+                  padding: `${spacing.sm}px ${spacing.md}px`, borderRadius: radius.md,
+                  background: colors.accent, color: colors.bg, border: 'none',
+                  fontWeight: typography.bold, cursor: 'pointer', fontSize: typography.sm,
                   fontFamily: 'inherit',
+                  transition: transitions.normal,
                 }}>전송</button>
               </div>
             </div>

@@ -466,6 +466,35 @@ export function Admin() {
                   })}
                 </div>
 
+                {/* Team members list */}
+                {memberCount > 0 && (
+                  <div style={{
+                    marginTop: 10, padding: '8px 10px', borderRadius: 8,
+                    background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)',
+                  }}>
+                    <div style={{ fontSize: 9, color: '#555', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 5 }}>접속 멤버</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                      {Object.keys(team!.members).map(pid => {
+                        const name = pid.includes('_') ? pid.split('_').slice(1).join('_') : pid
+                        const isRep = team!.representative === pid
+                        return (
+                          <span key={pid} style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 3,
+                            padding: '3px 8px', borderRadius: 12, fontSize: 11,
+                            background: isRep ? 'rgba(111,234,141,0.1)' : 'rgba(255,255,255,0.04)',
+                            border: `1px solid ${isRep ? 'rgba(111,234,141,0.25)' : 'rgba(255,255,255,0.06)'}`,
+                            color: isRep ? '#6fea8d' : '#aaa',
+                            fontWeight: isRep ? 600 : 400,
+                          }}>
+                            {isRep && <span style={{ fontSize: 10 }}>👑</span>}
+                            {name}
+                          </span>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Timer controls */}
                 <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
                   <button

@@ -77,104 +77,72 @@ export function Pledge() {
     <div style={{
       minHeight: '100vh',
       background: '#0a0a0f',
+      color: '#fff',
+      fontFamily: "'Noto Serif KR', serif",
+      padding: '32px 24px',
       display: 'flex',
       flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '32px 24px',
     }}>
       <motion.div
-        style={{ width: '100%', maxWidth: '380px' }}
+        style={{ width: '100%', maxWidth: '390px', margin: '0 auto', flex: 1, display: 'flex', flexDirection: 'column' }}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        {/* Icon */}
-        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-          <div style={{
-            width: '64px', height: '64px', borderRadius: '50%',
-            background: 'rgba(212,168,83,0.1)',
-            border: '1px solid rgba(212,168,83,0.2)',
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '28px', marginBottom: '20px',
-          }}>
-            📜
-          </div>
-          <h1 style={{
-            fontSize: '22px', fontWeight: '700',
-            color: 'rgba(255,255,255,0.9)',
-            letterSpacing: '-0.02em', marginBottom: '8px',
-            fontFamily: "'Noto Serif KR', serif",
-          }}>
-            악단원 서약
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>📜</div>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#6fea8d', marginBottom: 4 }}>
+            악단 입단 서약서
           </h1>
-          <p style={{
-            fontSize: '13px', color: 'rgba(255,255,255,0.4)',
-            fontFamily: "'Noto Serif KR', serif",
-          }}>
-            게임을 시작하기 전에 서약에 동의해주세요
+          <p style={{ fontSize: 12, color: '#666' }}>
+            신의 악단에 입단하기 위한 서약
           </p>
         </div>
 
-        {/* Pledge text */}
+        {/* Pledge box */}
         <div style={{
-          padding: '24px 20px',
           background: 'rgba(255,255,255,0.03)',
-          border: '1px solid rgba(255,255,255,0.06)',
-          borderRadius: '16px',
-          marginBottom: '24px',
+          border: '1px solid rgba(255,255,255,0.08)',
+          borderRadius: 12, padding: 20, marginBottom: 20,
         }}>
-          <div style={{
-            fontSize: '14px', color: 'rgba(255,255,255,0.6)',
-            lineHeight: 2, fontFamily: "'Noto Serif KR', serif",
-          }}>
-            <p style={{ marginBottom: '16px' }}>
-              나 <span style={{ color: '#d4a853', fontWeight: '700' }}>{playerName}</span>은(는)
-            </p>
-            <p style={{ marginBottom: '12px' }}>
-              하나, 팀원들과 함께 협력하여 미션을 수행하겠습니다.
-            </p>
-            <p style={{ marginBottom: '12px' }}>
-              하나, 안전하게 이동하며, 교통 규칙을 준수하겠습니다.
-            </p>
-            <p style={{ marginBottom: '12px' }}>
-              하나, 양림마을의 문화재와 주민들을 존중하겠습니다.
-            </p>
-            <p>
-              하나, 이 여정을 통해 하나님의 사랑을 느끼겠습니다.
-            </p>
+          <div style={{ fontSize: 13, color: '#ccc', lineHeight: 1.8, marginBottom: 16 }}>
+            나는 오늘, <span style={{ color: '#6fea8d', fontWeight: 600 }}>신의 악단</span>의 일원이 되어
+            잃어버린 악보를 되찾기 위한 신성한 임무에 참여합니다.
           </div>
+
+          <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.06)', margin: '16px 0' }} />
+
+          {[
+            { text: <>나는 주어진 임무에 <span style={{ color: '#6fea8d' }}>최선을 다해 참여</span>할 것을 서약합니다.</> },
+            { text: <>탐색 중 발견한 물건이나 시설물을 <span style={{ color: '#f59e0b' }}>절대 만지거나 훼손하지 않을 것</span>을 서약합니다.</> },
+            { text: <>이 임무에서 보고 들은 모든 것을 <span style={{ color: '#f59e0b' }}>외부에 발설하지 않을 것</span>을 서약합니다. 악보의 비밀은 악단 안에서만 지켜져야 합니다.</> },
+            { text: <>동료 악단원들과 <span style={{ color: '#6fea8d' }}>협력하여</span> 임무를 완수할 것을 서약합니다.</> },
+          ].map((item, i) => (
+            <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 12, alignItems: 'flex-start' }}>
+              <span style={{ color: '#6fea8d', fontWeight: 700, fontSize: 14, minWidth: 20 }}>{i + 1}</span>
+              <span style={{ fontSize: 13, color: '#bbb', lineHeight: 1.5 }}>{item.text}</span>
+            </div>
+          ))}
         </div>
 
         {/* Agreement checkbox */}
         <div
           onClick={() => setAgreed(!agreed)}
           style={{
-            display: 'flex', alignItems: 'center', gap: '12px',
-            padding: '14px 16px',
-            background: agreed ? 'rgba(212,168,83,0.06)' : 'rgba(255,255,255,0.03)',
-            border: `1px solid ${agreed ? 'rgba(212,168,83,0.2)' : 'rgba(255,255,255,0.06)'}`,
-            borderRadius: '12px', cursor: 'pointer',
-            marginBottom: '20px',
-            transition: 'all 0.2s',
+            display: 'flex', alignItems: 'center', gap: 8,
+            marginBottom: 20, cursor: 'pointer',
           }}
         >
           <div style={{
-            width: '22px', height: '22px', borderRadius: '6px',
-            border: `2px solid ${agreed ? '#d4a853' : 'rgba(255,255,255,0.2)'}`,
-            background: agreed ? '#d4a853' : 'transparent',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transition: 'all 0.2s',
-            flexShrink: 0,
+            flex: 1, padding: 12,
+            background: 'rgba(255,255,255,0.03)',
+            border: `1px dashed ${agreed ? 'rgba(111,234,141,0.5)' : 'rgba(111,234,141,0.3)'}`,
+            borderRadius: 8, textAlign: 'center',
+            color: '#6fea8d', fontSize: 13,
           }}>
-            {agreed && <span style={{ color: '#0a0a0f', fontSize: '13px', fontWeight: '700' }}>✓</span>}
+            ✍️ 서약에 동의합니다
           </div>
-          <span style={{
-            fontSize: '14px', color: 'rgba(255,255,255,0.7)',
-            fontWeight: '600', fontFamily: "'Noto Serif KR', serif",
-          }}>
-            위 서약에 동의합니다
-          </span>
         </div>
 
         {/* Submit button */}
@@ -183,30 +151,29 @@ export function Pledge() {
           disabled={!agreed || submitting || !isConnected}
           style={{
             width: '100%',
-            padding: '16px',
-            background: agreed && !submitting ? '#d4a853' : 'rgba(255,255,255,0.06)',
+            padding: 14,
+            background: agreed && !submitting ? '#6fea8d' : 'rgba(255,255,255,0.06)',
             color: agreed && !submitting ? '#0a0a0f' : 'rgba(255,255,255,0.25)',
             border: 'none',
-            borderRadius: '12px',
-            fontSize: '16px',
-            fontWeight: '700',
+            borderRadius: 10,
+            fontSize: 14,
+            fontWeight: 700,
             cursor: agreed && !submitting ? 'pointer' : 'not-allowed',
             fontFamily: "'Noto Serif KR', serif",
-            letterSpacing: '0.02em',
             transition: 'all 0.2s ease',
           }}
         >
-          {submitting ? '처리 중...' : '서약하고 게임 시작'}
+          {submitting ? '처리 중...' : '입단 서약 완료'}
         </button>
 
         {/* Connection status */}
         <div style={{
-          textAlign: 'center', marginTop: '16px',
-          fontSize: '11px', color: 'rgba(255,255,255,0.2)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+          textAlign: 'center', marginTop: 16,
+          fontSize: 11, color: 'rgba(255,255,255,0.2)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
         }}>
           <span style={{
-            width: '6px', height: '6px', borderRadius: '50%',
+            width: 6, height: 6, borderRadius: '50%',
             background: isConnected ? '#6fea8d' : '#ef4444',
             display: 'inline-block',
           }} />

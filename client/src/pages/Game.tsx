@@ -8,7 +8,6 @@ import {
   getLocationById,
   calculateDistance,
   getDirectionBearing,
-  getTeamRound,
 } from '../data/gameData'
 import type { Location, PlayerPosition, ChatMessage } from '../../../shared/types'
 
@@ -52,7 +51,6 @@ export function Game() {
   const [timerDuration, setTimerDuration] = useState(30 * 60 * 1000)
   const [timerDisplay, setTimerDisplay] = useState('30:00')
   const [teamMembers, setTeamMembers] = useState<PlayerPosition[]>([])
-  const [memberCounts, setMemberCounts] = useState<Record<string, { count: number; needed: number }>>({})
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [joined, setJoined] = useState(false)
 
@@ -60,6 +58,8 @@ export function Game() {
   const [showStepComplete, setShowStepComplete] = useState<{ stepNumber: number; photo: string } | null>(null)
   const [showWrong, setShowWrong] = useState<{ locationId: string; photo: string } | null>(null)
   const [showComplete, setShowComplete] = useState<{ photo: string } | null>(null)
+  const [showTimeoutOverlay, setShowTimeoutOverlay] = useState(true)
+  const [showCompleteOverlay, setShowCompleteOverlay] = useState(true)
 
   // Chat (representative only)
   const [chatOpen, setChatOpen] = useState(false)
@@ -68,8 +68,6 @@ export function Game() {
   const [chatInput, setChatInput] = useState('')
   const [unreadCount, setUnreadCount] = useState(0)
   const chatEndRef = useRef<HTMLDivElement>(null)
-
-  const teamRound = getTeamRound(teamId)
 
   // Redirect if not logged in
   useEffect(() => {
@@ -154,6 +152,7 @@ export function Game() {
       if (data.teamId === teamId) {
         setIsComplete(true)
         setShowComplete({ photo: data.photo })
+        setShowCompleteOverlay(true)
         setShowStepComplete(null)
       }
     })
@@ -172,20 +171,13 @@ export function Game() {
       if (data.teamId === teamId) {
         setIsTimerActive(false)
         setIsTimerExpired(true)
+        setShowTimeoutOverlay(true)
       }
     })
 
     // Team positions
     socket.on('team:positions', (positions) => {
       setTeamMembers(positions.filter((p: PlayerPosition) => p.playerId !== playerId))
-    })
-
-    // Member count at locations
-    socket.on('team:memberCount', (data) => {
-      setMemberCounts(prev => ({
-        ...prev,
-        [data.locationId]: { count: data.count, needed: data.needed },
-      }))
     })
 
     // Chat messages (for representative)
@@ -221,7 +213,6 @@ export function Game() {
       socket.off('team:timerStart')
       socket.off('team:timerExpired')
       socket.off('team:positions')
-      socket.off('team:memberCount')
       socket.off('chat:message')
       socket.off('chat:history')
       socket.off('error')
@@ -305,45 +296,23 @@ export function Game() {
   return (
     <div style={{ background: '#0a0a0f', minHeight: '100vh', color: '#e0e0e0', fontFamily: "'Noto Serif KR', serif" }}>
       {/* Header */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 50, background: '#0a0a0f', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px' }}>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 16 }}>팀 {teamId}</div>
-            <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
-              라운드 {teamRound} · {isComplete ? '완료!' : currentStep > 0 ? `${currentStep}단계 진행 중` : '대기 중'}
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ position: 'sticky', top: 0, zIndex: 50, background: '#0a0a0f', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '12px 16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 13, color: '#6fea8d' }}>팀 {teamId}</span>
             <span style={{
-              fontFamily: 'monospace', fontSize: 20, fontWeight: 600,
-              color: isTimerActive ? '#6fea8d' : isTimerExpired ? '#ef4444' : '#888',
-            }}>
-              {timerDisplay}
-            </span>
-            <span style={{
-              width: 8, height: 8, borderRadius: '50%',
+              width: 6, height: 6, borderRadius: '50%',
               background: isConnected ? '#6fea8d' : '#ef4444',
               display: 'inline-block',
             }} />
           </div>
+          <span style={{
+            fontSize: 13, color: '#f59e0b', fontVariantNumeric: 'tabular-nums',
+            background: 'rgba(245,158,11,0.1)', padding: '4px 10px', borderRadius: 6,
+          }}>
+            ⏱ {timerDisplay}
+          </span>
         </div>
-
-        {/* Step progress bar */}
-        {currentStep > 0 && (
-          <div style={{ display: 'flex', gap: 4, padding: '0 16px 10px' }}>
-            {[1, 2, 3].map(step => {
-              const isCompleted = completedSteps.includes(step)
-              const isCurrent = step === currentStep && !isComplete
-              return (
-                <div key={step} style={{
-                  flex: 1, height: 4, borderRadius: 2,
-                  background: isCompleted ? '#6fea8d' : isCurrent ? '#d4a853' : 'rgba(255,255,255,0.08)',
-                  transition: 'background 0.3s',
-                }} />
-              )
-            })}
-          </div>
-        )}
       </div>
 
       {/* GPS error */}
@@ -373,47 +342,102 @@ export function Game() {
         </div>
       )}
 
-      {/* Timer expired */}
-      {isTimerExpired && !isComplete && (
+      {/* Timer expired overlay */}
+      {isTimerExpired && !isComplete && showTimeoutOverlay && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 100,
           background: 'rgba(10,10,15,0.95)',
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           padding: 32,
         }}>
-          <div style={{ fontSize: 64, marginBottom: 20 }}>⏰</div>
-          <h2 style={{ fontSize: 24, fontWeight: 700, color: '#ef4444', marginBottom: 12 }}>시간 종료!</h2>
-          <p style={{ fontSize: 14, color: '#888', textAlign: 'center', lineHeight: 1.6, marginBottom: 24 }}>
-            30분이 모두 지났습니다.<br />관리자의 안내를 기다려주세요.
-          </p>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>⏰</div>
+          <h2 style={{ fontSize: 24, fontWeight: 700, color: '#f87171', marginBottom: 8 }}>시간 초과</h2>
+          <p style={{ fontSize: 13, color: '#888', marginBottom: 20 }}>30분이 경과했습니다</p>
+
+          {/* Progress bar */}
+          <div style={{ width: '100%', maxWidth: 300, marginBottom: 20 }}>
+            <div style={{
+              height: 8, background: 'rgba(255,255,255,0.06)', borderRadius: 4,
+              overflow: 'hidden', marginBottom: 8,
+            }}>
+              <div style={{
+                height: '100%', borderRadius: 4, background: '#6fea8d',
+                width: `${Math.round((completedSteps.length / 3) * 100)}%`,
+              }} />
+            </div>
+            <div style={{ fontSize: 12, color: '#888', textAlign: 'center' }}>
+              3단계 중 {completedSteps.length}단계까지 완료
+            </div>
+          </div>
+
+          {/* CCC Center notice */}
+          <div style={{
+            background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
+            borderRadius: 12, padding: 16, marginBottom: 20,
+            width: '100%', maxWidth: 300,
+          }}>
+            <div style={{ fontSize: 14, color: '#f59e0b', fontWeight: 600, marginBottom: 4 }}>
+              📍 CCC 센터로 오세요!
+            </div>
+            <div style={{ fontSize: 12, color: '#aaa' }}>
+              시간이 종료되었습니다<br />센터로 돌아와 주세요
+            </div>
+          </div>
+
           <button
-            onClick={() => navigate('/')}
+            onClick={() => setShowTimeoutOverlay(false)}
             style={{
-              padding: '12px 32px', borderRadius: 10, fontSize: 14,
-              background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+              padding: '14px 40px', borderRadius: 10, fontSize: 14,
+              background: 'transparent', border: '1px solid rgba(255,255,255,0.06)',
               color: '#888', cursor: 'pointer', fontFamily: "'Noto Serif KR', serif",
+              maxWidth: 300, width: '100%',
             }}
           >
-            홈으로
+            확인
           </button>
+        </div>
+      )}
+
+      {/* Waiting state when timer expired (after dismissing overlay) */}
+      {isTimerExpired && !isComplete && !showTimeoutOverlay && (
+        <div style={{ padding: '40px 16px', textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.6 }}>⏰</div>
+          <div style={{ fontSize: 20, fontWeight: 600, color: '#ccc', marginBottom: 8 }}>
+            임무 종료
+          </div>
+          <div style={{ fontSize: 13, color: '#666', lineHeight: 1.6, marginBottom: 32 }}>
+            시간이 종료되었습니다<br />관리자의 안내를 기다려주세요
+          </div>
+          <div style={{
+            background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
+            borderRadius: 12, padding: 16, maxWidth: 280, margin: '0 auto',
+          }}>
+            <div style={{ fontSize: 14, color: '#f59e0b', fontWeight: 600 }}>
+              📍 CCC 센터로 오세요!
+            </div>
+          </div>
         </div>
       )}
 
       {/* Game active content */}
       {currentStep > 0 && currentStep <= 3 && !isTimerExpired && (
         <>
-          {/* Step indicator */}
-          <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{
-              padding: '4px 10px', borderRadius: 6,
-              background: 'rgba(212,168,83,0.1)', border: '1px solid rgba(212,168,83,0.2)',
-              fontSize: 12, fontWeight: 700, color: '#d4a853',
-            }}>
-              {currentStep}단계
-            </span>
-            <span style={{ fontSize: 12, color: '#666' }}>
-              2곳 중 정답 장소를 찾아가세요
-            </span>
+          {/* Stage indicator dots */}
+          <div style={{ textAlign: 'center', margin: '16px 0' }}>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 12 }}>
+              {[1, 2, 3].map(step => {
+                const isCompleted = completedSteps.includes(step)
+                const isCurrent = step === currentStep && !isComplete
+                return (
+                  <div key={step} style={{
+                    width: 10, height: 10, borderRadius: '50%',
+                    background: isCompleted ? '#6fea8d' : isCurrent ? '#f59e0b' : 'rgba(255,255,255,0.1)',
+                    boxShadow: isCurrent ? '0 0 8px rgba(245,158,11,0.5)' : 'none',
+                  }} />
+                )
+              })}
+            </div>
+            <div style={{ fontSize: 12, color: '#888' }}>{currentStep}단계 / 3단계</div>
           </div>
 
           {/* Map */}
@@ -431,15 +455,14 @@ export function Game() {
             <HintCard hint={hint} />
           </div>
 
-          {/* Location cards */}
-          <div style={{ padding: '0 16px 24px' }}>
-            <div style={{ fontSize: 11, color: '#666', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 10 }}>
-              후보 장소 (2곳 중 1곳이 정답)
+          {/* Location cards - horizontal */}
+          <div style={{ padding: '0 16px' }}>
+            <div style={{ fontSize: 12, color: '#888', textAlign: 'center', marginBottom: 10 }}>
+              후보 장소를 선택하여 이동하세요
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
               {visibleLocations.map(loc => {
                 const info = getLocationInfo(loc)
-                const mc = memberCounts[loc.id]
                 const isWrongGuess = showWrong?.locationId === loc.id
 
                 return (
@@ -448,61 +471,51 @@ export function Game() {
                     onClick={() => handleCheckLocation(loc.id)}
                     disabled={isComplete || !isTimerActive}
                     style={{
-                      width: '100%', textAlign: 'left', padding: '14px 16px',
+                      flex: 1, textAlign: 'center', padding: 14,
                       borderRadius: 10,
                       background: isWrongGuess
                         ? 'rgba(239,68,68,0.08)'
                         : info.status === 'inside'
-                        ? 'rgba(111,234,141,0.06)'
+                        ? 'rgba(111,234,141,0.05)'
                         : 'rgba(255,255,255,0.03)',
                       border: `1px solid ${
                         isWrongGuess ? 'rgba(239,68,68,0.3)'
-                        : info.status === 'inside' ? 'rgba(111,234,141,0.2)'
-                        : 'rgba(255,255,255,0.06)'
+                        : info.status === 'inside' ? 'rgba(111,234,141,0.3)'
+                        : 'rgba(255,255,255,0.08)'
                       }`,
                       color: '#e0e0e0', cursor: 'pointer',
                       fontFamily: "'Noto Serif KR', serif",
                       transition: 'all 0.2s',
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={{
-                          width: 32, height: 32, borderRadius: 8,
-                          background: info.status === 'inside' ? 'rgba(111,234,141,0.15)' :
-                                      info.status === 'approaching' ? 'rgba(255,200,50,0.15)' : 'rgba(255,255,255,0.06)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 16,
-                        }}>
-                          📍
-                        </span>
-                        <div>
-                          <div style={{ fontSize: 15, fontWeight: 600 }}>{loc.name}</div>
-                          <div style={{ fontSize: 11, color: '#666', marginTop: 3 }}>
-                            {info.status === 'inside' && <span style={{ color: '#6fea8d' }}>도착!</span>}
-                            {info.status === 'approaching' && <span style={{ color: '#ffc832' }}>접근 중</span>}
-                            {info.status === 'outside' && '탐색 중'}
-                            {isWrongGuess && <span style={{ color: '#f87171' }}> · 오답</span>}
-                            {mc && (
-                              <span style={{ marginLeft: 8, color: mc.count >= mc.needed ? '#6fea8d' : '#888' }}>
-                                👥 {mc.count}/{mc.needed}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      {info.distance !== null && (
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontFamily: 'monospace', fontSize: 15, fontWeight: 600, color: info.status === 'inside' ? '#6fea8d' : '#ccc' }}>
-                            {formatDistance(info.distance)}
-                          </div>
-                          <div style={{ fontSize: 16, color: '#888' }}>{info.arrow}</div>
-                        </div>
-                      )}
+                    <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: '#eee' }}>{loc.name}</div>
+                    <div style={{ fontSize: 11, color: '#888' }}>
+                      {info.distance !== null ? `${formatDistance(info.distance)} 거리` : '거리 계산 중'}
                     </div>
+                    {info.status === 'inside' && (
+                      <div style={{ fontSize: 11, color: '#6fea8d', marginTop: 4 }}>도착!</div>
+                    )}
+                    {info.status === 'approaching' && (
+                      <div style={{ fontSize: 11, color: '#ffc832', marginTop: 4 }}>접근 중</div>
+                    )}
+                    {isWrongGuess && (
+                      <div style={{ fontSize: 11, color: '#f87171', marginTop: 4 }}>오답</div>
+                    )}
                   </button>
                 )
               })}
+            </div>
+          </div>
+
+          {/* Member count bar */}
+          <div style={{ padding: '0 16px 24px' }}>
+            <div style={{
+              textAlign: 'center', fontSize: 12, color: '#888',
+              padding: 8, background: 'rgba(255,255,255,0.02)', borderRadius: 8,
+            }}>
+              현재 위치 근처 팀원: <span style={{ color: '#6fea8d', fontWeight: 600 }}>
+                {teamMembers.filter(m => m.lat !== 0 && m.lng !== 0).length + (position ? 1 : 0)}/{teamMembers.length + 1}
+              </span>명
             </div>
           </div>
         </>
@@ -516,16 +529,32 @@ export function Game() {
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           padding: 32,
         }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🎵</div>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: '#6fea8d', marginBottom: 8 }}>
-            {showStepComplete.stepNumber}단계 완료!
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🎶</div>
+          <h2 style={{ fontSize: 24, fontWeight: 700, color: '#6fea8d', marginBottom: 8 }}>
+            {showStepComplete.stepNumber}단계 통과!
           </h2>
           <p style={{ fontSize: 13, color: '#888', marginBottom: 20 }}>
-            정답 장소를 찾았습니다
+            다음 장소를 향해 출발하세요
           </p>
+
+          {/* Stage indicator dots */}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 20 }}>
+            {[1, 2, 3].map(step => {
+              const isStepCompleted = completedSteps.includes(step)
+              const isCurrent = step === currentStep && !isComplete
+              return (
+                <div key={step} style={{
+                  width: 10, height: 10, borderRadius: '50%',
+                  background: isStepCompleted ? '#6fea8d' : isCurrent ? '#f59e0b' : 'rgba(255,255,255,0.1)',
+                  boxShadow: isCurrent ? '0 0 8px rgba(245,158,11,0.5)' : 'none',
+                }} />
+              )
+            })}
+          </div>
+
           {showStepComplete.photo && (
             <div style={{
-              width: '100%', maxWidth: 300, aspectRatio: '4/3', borderRadius: 12,
+              width: '100%', maxWidth: 280, aspectRatio: '4/3', borderRadius: 12,
               overflow: 'hidden', marginBottom: 20,
               border: '1px solid rgba(111,234,141,0.2)',
             }}>
@@ -535,9 +564,10 @@ export function Game() {
           <button
             onClick={() => setShowStepComplete(null)}
             style={{
-              padding: '14px 40px', borderRadius: 10, fontSize: 15, fontWeight: 700,
+              padding: '14px 40px', borderRadius: 10, fontSize: 14, fontWeight: 700,
               background: '#6fea8d', color: '#0a0a0f', border: 'none', cursor: 'pointer',
               fontFamily: "'Noto Serif KR', serif",
+              maxWidth: 300, width: '100%',
             }}
           >
             다음 단계로
@@ -553,20 +583,16 @@ export function Game() {
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           padding: 32,
         }}>
-          <div style={{
-            width: 70, height: 70, borderRadius: 16, marginBottom: 20,
-            background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32,
-          }}>
-            ✕
-          </div>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: '#f87171', marginBottom: 8 }}>오답입니다</h2>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>❌</div>
+          <h2 style={{ fontSize: 24, fontWeight: 700, color: '#f87171', marginBottom: 8 }}>이곳이 아닙니다</h2>
           <p style={{ fontSize: 13, color: '#888', marginBottom: 20 }}>다른 장소를 찾아보세요</p>
           {showWrong.photo && (
             <div style={{
-              width: '100%', maxWidth: 300, aspectRatio: '4/3', borderRadius: 12,
+              width: '100%', maxWidth: 280, aspectRatio: '4/3', borderRadius: 12,
               overflow: 'hidden', marginBottom: 20,
               border: '1px solid rgba(239,68,68,0.2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'rgba(255,255,255,0.05)',
             }}>
               <img src={`/${showWrong.photo}`} alt="오답" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
@@ -574,17 +600,100 @@ export function Game() {
           <button
             onClick={() => setShowWrong(null)}
             style={{
-              padding: '14px 40px', borderRadius: 10, fontSize: 15, fontWeight: 700,
+              padding: '14px 40px', borderRadius: 10, fontSize: 14, fontWeight: 700,
               background: 'rgba(239,68,68,0.8)', color: '#fff', border: 'none', cursor: 'pointer',
               fontFamily: "'Noto Serif KR', serif",
+              maxWidth: 300, width: '100%',
             }}
           >
-            다시 시도
+            다른 장소로 이동
           </button>
         </div>
       )}
 
-      {/* Chat for representative */}
+      {/* Game Complete Overlay */}
+      {showComplete && showCompleteOverlay && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 100,
+          background: 'rgba(10,10,15,0.95)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: 32,
+        }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🏆</div>
+          <h2 style={{ fontSize: 24, fontWeight: 700, color: '#f59e0b', marginBottom: 8 }}>
+            임무 완료!
+          </h2>
+          <p style={{ fontSize: 13, color: '#888', marginBottom: 20 }}>
+            모든 악보 조각을 찾았습니다
+          </p>
+
+          {/* Stage indicator dots - all completed */}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 20 }}>
+            {[1, 2, 3].map(step => (
+              <div key={step} style={{
+                width: 10, height: 10, borderRadius: '50%',
+                background: '#6fea8d',
+              }} />
+            ))}
+          </div>
+
+          {showComplete.photo && (
+            <div style={{
+              width: '100%', maxWidth: 280, aspectRatio: '4/3', borderRadius: 12,
+              overflow: 'hidden', marginBottom: 20,
+              border: '1px solid rgba(245,158,11,0.2)',
+            }}>
+              <img src={`/${showComplete.photo}`} alt="완성된 악보" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </div>
+          )}
+
+          {/* CCC Center notice */}
+          <div style={{
+            background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
+            borderRadius: 12, padding: 16, marginBottom: 20,
+            width: '100%', maxWidth: 300,
+          }}>
+            <div style={{ fontSize: 14, color: '#f59e0b', fontWeight: 600 }}>
+              📍 CCC 센터로 오세요!
+            </div>
+          </div>
+
+          <button
+            onClick={() => setShowCompleteOverlay(false)}
+            style={{
+              padding: '14px 40px', borderRadius: 10, fontSize: 14, fontWeight: 700,
+              background: '#6fea8d', color: '#0a0a0f', border: 'none', cursor: 'pointer',
+              fontFamily: "'Noto Serif KR', serif",
+              maxWidth: 300, width: '100%',
+            }}
+          >
+            확인
+          </button>
+        </div>
+      )}
+
+      {/* Waiting state when game is complete (after dismissing overlay) */}
+      {isComplete && !showCompleteOverlay && (
+        <div style={{ padding: '40px 16px', textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.6 }}>🏆</div>
+          <div style={{ fontSize: 20, fontWeight: 600, color: '#ccc', marginBottom: 8 }}>
+            임무 완료
+          </div>
+          <div style={{ fontSize: 13, color: '#666', lineHeight: 1.6, marginBottom: 32 }}>
+            모든 악보 조각을 찾았습니다<br />관리자의 안내를 기다려주세요
+          </div>
+          <div style={{
+            background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
+            borderRadius: 12, padding: 16, maxWidth: 280, margin: '0 auto',
+          }}>
+            <div style={{ fontSize: 14, color: '#f59e0b', fontWeight: 600 }}>
+              📍 CCC 센터로 오세요!
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Chat for representative — always visible regardless of game state */}
       {isRepresentative && (
         <>
           {/* Floating chat button */}
@@ -592,11 +701,11 @@ export function Game() {
             <button
               onClick={() => setChatOpen(true)}
               style={{
-                position: 'fixed', bottom: 24, right: 24, zIndex: 70,
-                width: 56, height: 56, borderRadius: '50%',
-                background: '#3b82f6', color: '#fff', border: 'none',
-                fontSize: 24, cursor: 'pointer',
-                boxShadow: '0 4px 16px rgba(59,130,246,0.3)',
+                position: 'fixed', bottom: 24, right: 24, zIndex: 110,
+                width: 50, height: 50, borderRadius: '50%',
+                background: '#6fea8d', color: '#0a0a0f', border: 'none',
+                fontSize: 22, cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(111,234,141,0.3)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}
             >
@@ -617,31 +726,34 @@ export function Game() {
           {/* Chat panel */}
           {chatOpen && (
             <div style={{
-              position: 'fixed', bottom: 0, right: 0, left: 0, zIndex: 75,
-              height: '50vh', maxHeight: 400,
+              position: 'fixed', bottom: 80, right: 20, zIndex: 110,
+              width: 300, height: 400,
               background: '#0a0a0f',
-              borderTop: '1px solid rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 16,
               display: 'flex', flexDirection: 'column',
+              overflow: 'hidden',
               fontFamily: "'Noto Serif KR', serif",
             }}>
               {/* Chat header */}
               <div style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '10px 16px',
+                padding: '14px 16px',
+                background: 'rgba(111,234,141,0.08)',
                 borderBottom: '1px solid rgba(255,255,255,0.06)',
               }}>
-                <span style={{ fontSize: 14, fontWeight: 600, color: '#e0e0e0' }}>관리자 채팅</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: '#6fea8d' }}>관리자 채팅</span>
                 <button
                   onClick={() => setChatOpen(false)}
                   style={{
                     background: 'none', border: 'none', color: '#888',
-                    fontSize: 20, cursor: 'pointer', padding: '0 4px',
+                    fontSize: 18, cursor: 'pointer',
                   }}
                 >✕</button>
               </div>
 
               {/* Messages */}
-              <div style={{ flex: 1, overflowY: 'auto', padding: '10px 16px' }}>
+              <div style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {chatMessages.length === 0 ? (
                   <div style={{ textAlign: 'center', color: '#444', fontSize: 13, paddingTop: 30 }}>
                     관리자에게 메시지를 보내보세요
@@ -649,20 +761,17 @@ export function Game() {
                 ) : (
                   chatMessages.map((msg, i) => (
                     <div key={msg.id || i} style={{
-                      marginBottom: 8,
-                      display: 'flex', flexDirection: 'column',
-                      alignItems: msg.isAdmin ? 'flex-start' : 'flex-end',
+                      maxWidth: '80%', padding: '8px 12px', borderRadius: 12,
+                      alignSelf: msg.isAdmin ? 'flex-start' : 'flex-end',
+                      background: msg.isAdmin ? 'rgba(255,255,255,0.06)' : 'rgba(111,234,141,0.15)',
+                      borderBottomLeftRadius: msg.isAdmin ? 4 : 12,
+                      borderBottomRightRadius: msg.isAdmin ? 12 : 4,
+                      fontSize: 13, lineHeight: 1.4, color: msg.isAdmin ? '#ccc' : '#ddd',
                     }}>
-                      <div style={{ fontSize: 10, color: '#555', marginBottom: 2 }}>
-                        {msg.senderName} · {new Date(msg.timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                      <div style={{ fontSize: 10, color: '#888', marginBottom: 2 }}>
+                        {msg.senderName}
                       </div>
-                      <div style={{
-                        padding: '8px 12px', borderRadius: 8, maxWidth: '80%',
-                        background: msg.isAdmin ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.06)',
-                        fontSize: 13, lineHeight: 1.5, color: '#e0e0e0',
-                      }}>
-                        {msg.message}
-                      </div>
+                      {msg.message}
                     </div>
                   ))
                 )}
@@ -670,75 +779,29 @@ export function Game() {
               </div>
 
               {/* Input */}
-              <div style={{ display: 'flex', gap: 8, padding: '10px 16px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ display: 'flex', gap: 8, padding: 10, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                 <input
-                  type="text" placeholder="관리자에게 메시지..."
+                  type="text" placeholder="메시지 입력..."
                   value={chatInput}
                   onChange={e => setChatInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) sendChatMessage() }}
                   style={{
                     flex: 1, padding: '10px 12px', borderRadius: 8,
-                    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                    color: '#e0e0e0', fontSize: 13, outline: 'none',
-                    fontFamily: "'Noto Serif KR', serif",
+                    background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+                    color: '#fff', fontSize: 13, outline: 'none',
+                    fontFamily: 'inherit',
                   }}
                 />
                 <button onClick={sendChatMessage} style={{
-                  padding: '10px 16px', borderRadius: 8,
-                  background: chatInput.trim() ? '#3b82f6' : 'rgba(255,255,255,0.04)',
-                  color: chatInput.trim() ? '#fff' : '#444',
-                  border: 'none', cursor: chatInput.trim() ? 'pointer' : 'not-allowed',
-                  fontSize: 13, fontWeight: 600, fontFamily: "'Noto Serif KR', serif",
+                  padding: '10px 14px', borderRadius: 8,
+                  background: '#6fea8d', color: '#0a0a0f', border: 'none',
+                  fontWeight: 700, cursor: 'pointer', fontSize: 13,
+                  fontFamily: 'inherit',
                 }}>전송</button>
               </div>
             </div>
           )}
         </>
-      )}
-
-      {/* Game Complete Overlay */}
-      {showComplete && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 100,
-          background: 'rgba(10,10,15,0.95)',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          padding: 32,
-        }}>
-          <div style={{ fontSize: 64, marginBottom: 16 }}>🎼</div>
-          <h2 style={{ fontSize: 26, fontWeight: 700, color: '#d4a853', marginBottom: 8 }}>
-            미션 완료!
-          </h2>
-          <p style={{ fontSize: 14, color: '#888', marginBottom: 4 }}>
-            3개의 장소를 모두 찾았습니다
-          </p>
-          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', marginBottom: 20 }}>
-            하나님의 악보가 완성되었습니다
-          </p>
-          {showComplete.photo && (
-            <div style={{
-              width: '100%', maxWidth: 320, aspectRatio: '4/3', borderRadius: 12,
-              overflow: 'hidden', marginBottom: 24,
-              border: '2px solid rgba(212,168,83,0.3)',
-            }}>
-              <img src={`/${showComplete.photo}`} alt="완성된 악보" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            </div>
-          )}
-          <div style={{ display: 'flex', gap: 12, marginBottom: 16, fontSize: 28, color: 'rgba(212,168,83,0.5)' }}>
-            {'♪♫♩♫♪'.split('').map((note, i) => (
-              <span key={i}>{note}</span>
-            ))}
-          </div>
-          <button
-            onClick={() => navigate('/')}
-            style={{
-              padding: '12px 32px', borderRadius: 10, fontSize: 14,
-              background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
-              color: '#888', cursor: 'pointer', fontFamily: "'Noto Serif KR', serif",
-            }}
-          >
-            홈으로
-          </button>
-        </div>
       )}
     </div>
   )

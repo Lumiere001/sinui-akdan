@@ -31,12 +31,10 @@ export function Landing() {
     localStorage.setItem('teamPassword', passwordInput)
     localStorage.setItem('playerName', nameInput.trim())
     localStorage.setItem('isRepresentative', isRepresentative ? 'true' : 'false')
-    // Generate or restore playerId
-    let pid = localStorage.getItem('playerId')
-    if (!pid) {
-      pid = `player_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-      localStorage.setItem('playerId', pid)
-    }
+    // Generate deterministic playerId from team + name
+    // This ensures the same person gets the same ID regardless of browser/app
+    const pid = `t${teamNum}_${nameInput.trim()}`
+    localStorage.setItem('playerId', pid)
     navigate('/pledge')
   }
 

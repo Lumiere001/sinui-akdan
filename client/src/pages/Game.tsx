@@ -51,6 +51,7 @@ export function Game() {
   const [timerDuration, setTimerDuration] = useState(30 * 60 * 1000)
   const [timerDisplay, setTimerDisplay] = useState('30:00')
   const [teamMembers, setTeamMembers] = useState<PlayerPosition[]>([])
+  const [memberCounts, setMemberCounts] = useState<Record<string, { count: number; needed: number }>>({})
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [joined, setJoined] = useState(false)
 
@@ -180,6 +181,14 @@ export function Game() {
       setTeamMembers(positions.filter((p: PlayerPosition) => p.playerId !== playerId))
     })
 
+    // Member count at locations
+    socket.on('team:memberCount', (data) => {
+      setMemberCounts(prev => ({
+        ...prev,
+        [data.locationId]: { count: data.count, needed: data.needed },
+      }))
+    })
+
     // Chat messages (for representative)
     socket.on('chat:message', (msg: ChatMessage) => {
       if (msg.teamId === teamId) {
@@ -213,6 +222,7 @@ export function Game() {
       socket.off('team:timerStart')
       socket.off('team:timerExpired')
       socket.off('team:positions')
+      socket.off('team:memberCount')
       socket.off('chat:message')
       socket.off('chat:history')
       socket.off('error')
@@ -509,14 +519,28 @@ export function Game() {
 
           {/* Member count bar */}
           <div style={{ padding: '0 16px 24px' }}>
-            <div style={{
-              textAlign: 'center', fontSize: 12, color: '#888',
-              padding: 8, background: 'rgba(255,255,255,0.02)', borderRadius: 8,
-            }}>
-              현재 위치 근처 팀원: <span style={{ color: '#6fea8d', fontWeight: 600 }}>
-                {teamMembers.filter(m => m.lat !== 0 && m.lng !== 0).length + (position ? 1 : 0)}/{teamMembers.length + 1}
-              </span>명
-            </div>
+            {(() => {
+              // Find the best member count data from either location
+              const counts = visibleLocations
+                .map(loc => memberCounts[loc.id])
+                .filter(Boolean)
+              const best = counts.length > 0
+                ? counts.reduce((a, b) => a.count >= b.count ? a : b)
+                : null
+              const count = best ? best.count : 0
+              const needed = best ? best.needed : 3
+              const unlocked = count >= needed
+              return (
+                <div style={{
+                  textAlign: 'center', fontSize: 12, color: '#888',
+                  padding: 8, background: 'rgba(255,255,255,0.02)', borderRadius: 8,
+                }}>
+                  현재 위치 근처 팀원: <span style={{ color: '#6fea8d', fontWeight: 600 }}>
+                    {count}/{needed}
+                  </span>명{unlocked && ' ✅ 해금 가능!'}
+                </div>
+              )
+            })()}
           </div>
         </>
       )}

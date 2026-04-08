@@ -639,6 +639,9 @@ io.on('connection', (socket) => {
 
       gameStateManager.startTeamTimer(teamId);
 
+      // Notify participants of stage change to stage2
+      io.to(`team:${teamId}`).emit('team:stageChange', { teamId, stage: 'stage2' as TeamStage });
+
       // Get team route and send initial step
       const teamRoute = getTeamRoute(teamId);
       if (teamRoute) {

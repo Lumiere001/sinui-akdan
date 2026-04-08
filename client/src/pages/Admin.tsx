@@ -602,7 +602,17 @@ export function Admin() {
                       const label = s === 'stage1_ready' ? 'S1 준비' : 'S2 준비'
                       const active = teamStage === s || (s === 'stage1_ready' && teamStage === 'stage1') || (s === 'stage2_ready' && teamStage === 'stage2')
                       return (
-                        <button key={s} onClick={() => setTeamStage(tId, s)}
+                        <button key={s} onClick={() => {
+                          const hasActiveS1 = s1Active || s1Paused
+                          const hasActiveS2 = isActive || isPaused
+                          if (s === 'stage2_ready' && hasActiveS1) {
+                            if (!window.confirm('Stage 1 타이머가 진행 중입니다. Stage 2 준비로 전환하시겠습니까?')) return
+                          }
+                          if (s === 'stage1_ready' && hasActiveS2) {
+                            if (!window.confirm('Stage 2 타이머가 진행 중입니다. Stage 1 준비로 전환하시겠습니까?')) return
+                          }
+                          setTeamStage(tId, s)
+                        }}
                           style={{
                             flex: 1, padding: '5px', borderRadius: 5, fontSize: 10, fontWeight: 600,
                             background: active ? 'rgba(212,168,83,0.1)' : 'rgba(255,255,255,0.02)',

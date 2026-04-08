@@ -423,7 +423,7 @@ export function Game() {
   }
 
   // ========== Stage 1 / Stage 1 Ready / Idle Rendering ==========
-  if (stage === 'idle' || stage === 'stage1_ready' || stage === 'stage1') {
+  if (stage === 'idle' || stage === 'stage1_ready' || stage === 'stage1' || stage === 'stage2_ready') {
     return (
       <div style={{ background: '#0a0a0f', minHeight: '100vh', color: '#e0e0e0', fontFamily: "'Noto Serif KR', serif", display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
@@ -438,7 +438,7 @@ export function Game() {
               }} />
             </div>
             <span style={{ fontSize: 11, color: '#666' }}>
-              {stage === 'idle' ? '대기 중' : stage === 'stage1_ready' ? 'Stage 1 준비' : 'Stage 1'}
+              {stage === 'idle' ? '대기 중' : stage === 'stage1_ready' ? 'Stage 1 준비' : stage === 'stage2_ready' ? 'Stage 2 준비' : 'Stage 1'}
             </span>
           </div>
         </div>
@@ -494,6 +494,21 @@ export function Game() {
               {/* Status text */}
               <div style={{ fontSize: 14, color: '#666' }}>
                 {s1TimerExpired ? '시간이 종료되었습니다' : s1TimerPaused ? '일시정지됨' : s1TimerActive ? '진행 중...' : '대기 중'}
+              </div>
+            </div>
+          )}
+
+          {stage === 'stage2_ready' && (
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 48, marginBottom: 20 }}>🗺️</div>
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: '#3b82f6', marginBottom: 8 }}>Stage 2 준비</h2>
+              <p style={{ fontSize: 14, color: '#888' }}>곧 시작됩니다. 준비해주세요!</p>
+              <div style={{
+                marginTop: 24, fontSize: 64, fontWeight: 700,
+                color: 'rgba(59,130,246,0.3)', fontVariantNumeric: 'tabular-nums',
+                fontFamily: 'monospace',
+              }}>
+                30:00
               </div>
             </div>
           )}

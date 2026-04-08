@@ -34,13 +34,32 @@ class GameStateManager {
   // ========== Stage Management ==========
 
   /**
-   * Set team stage
+   * Set team stage (cleans up previous stage timers)
    */
   setTeamStage(teamId: number, stage: TeamStage): void {
     const team = this.state.teams[teamId];
     if (!team) {
       throw new Error(`Team ${teamId} not found`);
     }
+
+    const prevStage = team.stage;
+
+    // Clean up Stage 1 timer when leaving stage1/stage1_ready
+    if ((prevStage === 'stage1' || prevStage === 'stage1_ready') &&
+        stage !== 'stage1' && stage !== 'stage1_ready') {
+      team.stage1TimerActive = false;
+      team.stage1TimerPaused = false;
+      team.stage1TimerRemainingAtPause = null;
+    }
+
+    // Clean up Stage 2 timer when leaving stage2/stage2_ready
+    if ((prevStage === 'stage2' || prevStage === 'stage2_ready') &&
+        stage !== 'stage2' && stage !== 'stage2_ready') {
+      team.isTimerActive = false;
+      team.isTimerPaused = false;
+      team.timerRemainingAtPause = null;
+    }
+
     team.stage = stage;
     this.saveState();
   }
@@ -130,6 +149,12 @@ class GameStateManager {
     if (!team) {
       throw new Error(`Team ${teamId} not found`);
     }
+
+    // Auto-set stage to stage2 and clean up stage1 timer
+    team.stage = 'stage2';
+    team.stage1TimerActive = false;
+    team.stage1TimerPaused = false;
+    team.stage1TimerRemainingAtPause = null;
 
     team.timerStartTime = Date.now();
     team.timerDuration = 30 * 60 * 1000;

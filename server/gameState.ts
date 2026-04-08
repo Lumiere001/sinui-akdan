@@ -168,6 +168,17 @@ class GameStateManager {
   }
 
   /**
+   * Remove pledges for a specific team
+   */
+  removePledgesForTeam(teamId: number): void {
+    const toRemove = Object.keys(this.state.pledges).filter(pid => pid.startsWith(`t${teamId}_`));
+    for (const pid of toRemove) {
+      delete this.state.pledges[pid];
+    }
+    if (toRemove.length > 0) this.saveState();
+  }
+
+  /**
    * Check if player has submitted pledge
    */
   hasPledge(playerId: string): boolean {

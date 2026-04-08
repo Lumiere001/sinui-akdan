@@ -235,7 +235,12 @@ export function Admin() {
   function startTimer(teamId: number) { socket?.emit('admin:startTimer', teamId) }
   function stopTimer(teamId: number) { socket?.emit('admin:stopTimer', teamId) }
   function resetGame() {
-    if (confirm('정말로 게임을 초기화하시겠습니까?')) socket?.emit('admin:resetGame')
+    if (confirm('정말로 전체 게임을 초기화하시겠습니까?')) socket?.emit('admin:resetGame')
+  }
+  function resetTeam(teamId: number) {
+    if (confirm(`팀 ${teamId}을(를) 재시작하시겠습니까?\n(진행상태, 서약, 타이머 모두 초기화)`)) {
+      socket?.emit('admin:resetTeam', teamId)
+    }
   }
   function sendChat() {
     if (!socket || !chatInput.trim()) return
@@ -497,6 +502,14 @@ export function Admin() {
                       }}>{teamUnread}</span>
                     )}
                   </button>
+                  <button
+                    onClick={() => resetTeam(tId)}
+                    style={{
+                      padding: '7px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                      background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
+                      color: '#f59e0b', cursor: 'pointer', fontFamily: "'Noto Serif KR', serif",
+                    }}
+                  >↺</button>
                 </div>
               </div>
             )
@@ -511,7 +524,7 @@ export function Admin() {
 
           {/* Team chat tabs */}
           <div style={{ display: 'flex', gap: 4, marginBottom: 10, flexWrap: 'wrap' }}>
-            {Array.from({ length: 10 }, (_, i) => i + 1).map(tId => {
+            {Array.from({ length: 11 }, (_, i) => i + 1).map(tId => {
               const unread = unreadCounts[tId] || 0
               const isSelected = selectedChatTeam === tId
               return (

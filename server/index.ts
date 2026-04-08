@@ -716,6 +716,43 @@ io.on('connection', (socket) => {
     }
   });
 
+  /**
+   * Admin resets a specific team
+   * Event: admin:resetTeam
+   */
+  socket.on('admin:resetTeam', (teamId: number) => {
+    try {
+      if (teamId < 1 || teamId > 11) {
+        socket.emit('error', { message: 'Invalid team ID' });
+        return;
+      }
+
+      gameStateManager.resetTeam(teamId);
+
+      // Remove team connections for this team
+      const socketsToRemove: string[] = [];
+      teamConnections.forEach((value, key) => {
+        if (value.teamId === teamId) {
+          socketsToRemove.push(key);
+        }
+      });
+      for (const socketId of socketsToRemove) {
+        teamConnections.delete(socketId);
+      }
+
+      // Remove team pledges
+      gameStateManager.removePledgesForTeam(teamId);
+
+      broadcastGameState();
+      console.log(`[Admin] Team ${teamId} reset`);
+    } catch (error) {
+      console.error('[Error] admin:resetTeam:', error);
+      socket.emit('error', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  });
+
   // ========== Disconnection Handler ==========
   socket.on('disconnect', () => {
     const connection = teamConnections.get(socket.id);

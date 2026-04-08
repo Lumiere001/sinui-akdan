@@ -36,10 +36,22 @@ export interface PlayerPosition {
   timestamp: number;
 }
 
+// Stage type: 'idle' | 'stage1_ready' | 'stage1' | 'stage2_ready' | 'stage2'
+export type TeamStage = 'idle' | 'stage1_ready' | 'stage1' | 'stage2_ready' | 'stage2';
+
 // Team state during game
 export interface TeamState {
   teamId: number;
+  stage: TeamStage;                       // 현재 스테이지 상태
   members: Record<string, PlayerPosition>;
+  // Stage 1 timer (40 minutes)
+  stage1TimerStartTime: number | null;
+  stage1TimerDuration: number;            // 40 minutes in ms
+  stage1TimerActive: boolean;
+  stage1TimerExpired: boolean;
+  stage1TimerPaused: boolean;
+  stage1TimerRemainingAtPause: number | null;
+  // Stage 2 (existing fields)
   currentStep: number;                    // 0=not started, 1-3=current step, 4=completed
   completedSteps: number[];               // Array of completed step numbers
   isComplete: boolean;
@@ -81,6 +93,7 @@ export interface GameState {
 export interface ServerToClientEvents {
   'game:state': (state: GameState) => void;
   'pledge:status': (data: { playerId: string; hasPledge: boolean }) => void;
+  'team:stageChange': (data: { teamId: number; stage: TeamStage }) => void;
   'team:stageUpdate': (data: { teamId: number; currentStep: number; hint: string; locations: { correctId: string; wrongId: string } }) => void;
   'team:stepComplete': (data: { teamId: number; stepNumber: number; photo: string }) => void;
   'team:wrong': (data: { teamId: number; locationId: string; photo: string }) => void;
@@ -89,6 +102,10 @@ export interface ServerToClientEvents {
   'team:timerPaused': (data: { teamId: number; remaining: number }) => void;
   'team:timerResumed': (data: { teamId: number; duration: number }) => void;
   'team:timerExpired': (data: { teamId: number }) => void;
+  'team:stage1TimerStart': (data: { teamId: number; duration: number }) => void;
+  'team:stage1TimerPaused': (data: { teamId: number; remaining: number }) => void;
+  'team:stage1TimerResumed': (data: { teamId: number; duration: number }) => void;
+  'team:stage1TimerExpired': (data: { teamId: number }) => void;
   'team:positions': (positions: PlayerPosition[]) => void;
   'team:memberCount': (data: { locationId: string; count: number; needed: number }) => void;
   'chat:message': (data: ChatMessage) => void;
@@ -106,10 +123,15 @@ export interface ClientToServerEvents {
   'pledge:check': (data: { playerId: string }) => void;
   'chat:send': (data: { teamId: number; message: string }) => void;
   'admin:join': (password: string) => void;
+  'admin:setStage': (data: { teamId: number; stage: TeamStage }) => void;
   'admin:startTimer': (teamId: number) => void;
   'admin:stopTimer': (teamId: number) => void;
   'admin:pauseTimer': (teamId: number) => void;
   'admin:resumeTimer': (teamId: number) => void;
+  'admin:stage1StartTimer': (teamId: number) => void;
+  'admin:stage1StopTimer': (teamId: number) => void;
+  'admin:stage1PauseTimer': (teamId: number) => void;
+  'admin:stage1ResumeTimer': (teamId: number) => void;
   'admin:resetGame': () => void;
   'admin:resetTeam': (teamId: number) => void;
 }

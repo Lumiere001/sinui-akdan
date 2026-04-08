@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useSocket } from '../hooks/useSocket'
-import type { GameState, ChatMessage, PlayerPosition } from '../../../shared/types'
+import type { GameState, ChatMessage, PlayerPosition, TeamStage } from '../../../shared/types'
 
 const ADMIN_PASSWORD = 'admin2024'
 
@@ -249,6 +249,12 @@ export function Admin() {
       socket?.emit('admin:resetTeam', teamId)
     }
   }
+  function setTeamStage(teamId: number, stage: TeamStage) { socket?.emit('admin:setStage', { teamId, stage }) }
+  function stage1StartTimer(teamId: number) { socket?.emit('admin:stage1StartTimer', teamId) }
+  function stage1StopTimer(teamId: number) { socket?.emit('admin:stage1StopTimer', teamId) }
+  function stage1PauseTimer(teamId: number) { socket?.emit('admin:stage1PauseTimer', teamId) }
+  function stage1ResumeTimer(teamId: number) { socket?.emit('admin:stage1ResumeTimer', teamId) }
+
   function sendChat() {
     if (!socket || !chatInput.trim()) return
     socket.emit('chat:send', { teamId: selectedChatTeam, message: chatInput.trim() })
@@ -273,6 +279,36 @@ export function Admin() {
     const mins = Math.floor(remaining / 60000)
     const secs = Math.floor((remaining % 60000) / 1000)
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+  }
+
+  function getStage1TimerDisplay(teamId: number): string {
+    const team = gameState?.teams[teamId]
+    if (!team) return '--:--'
+    if (team.stage1TimerPaused && team.stage1TimerRemainingAtPause !== null) {
+      const remaining = team.stage1TimerRemainingAtPause
+      const mins = Math.floor(remaining / 60000)
+      const secs = Math.floor((remaining % 60000) / 1000)
+      return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+    }
+    if (!team.stage1TimerStartTime || !team.stage1TimerActive) {
+      if (team.stage1TimerExpired) return '00:00'
+      return '40:00'
+    }
+    const elapsed = Date.now() - team.stage1TimerStartTime
+    const remaining = Math.max(0, team.stage1TimerDuration - elapsed)
+    const mins = Math.floor(remaining / 60000)
+    const secs = Math.floor((remaining % 60000) / 1000)
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+  }
+
+  function getStageLabel(teamId: number): string {
+    const team = gameState?.teams[teamId]
+    if (!team) return '-'
+    const labels: Record<string, string> = {
+      idle: '대기', stage1_ready: 'S1 준비', stage1: 'Stage 1',
+      stage2_ready: 'S2 준비', stage2: 'Stage 2',
+    }
+    return labels[team.stage || 'idle'] || '대기'
   }
 
   function getStepLabel(teamId: number): string {
@@ -403,10 +439,14 @@ export function Admin() {
             const team = gameState?.teams[tId]
             const memberCount = team ? Object.keys(team.members).length : 0
             const color = TEAM_COLORS[tId]
+            const teamStage = team?.stage || 'idle'
             const isActive = team?.isTimerActive
             const isPaused = team?.isTimerPaused
             const isExpired = team?.isTimerExpired
             const isDone = team?.isComplete
+            const s1Active = team?.stage1TimerActive
+            const s1Paused = team?.stage1TimerPaused
+            const s1Expired = team?.stage1TimerExpired
             const pCount = pledgeCounts[tId] || 0
             const teamUnread = unreadCounts[tId] || 0
 
@@ -451,16 +491,22 @@ export function Admin() {
                       </div>
                       <div style={{ fontSize: 10, color: '#666', display: 'flex', gap: 6 }}>
                         <span>👥 {memberCount}명</span>
-                        <span>📜 서약 {pCount}명</span>
-                        <span>단계 {getStepLabel(tId)}</span>
+                        <span>📜 {pCount}명</span>
+                        <span>{getStageLabel(tId)}</span>
+                        {teamStage === 'stage2' && <span>단계 {getStepLabel(tId)}</span>}
                       </div>
                     </div>
                   </div>
                   <div style={{
                     fontFamily: 'monospace', fontSize: 16, fontWeight: 600,
-                    color: isActive ? '#6fea8d' : isPaused ? '#f59e0b' : isExpired ? '#ef4444' : '#555',
+                    color: (teamStage === 'stage1' || teamStage === 'stage1_ready')
+                      ? (s1Active ? '#6fea8d' : s1Paused ? '#f59e0b' : s1Expired ? '#ef4444' : '#555')
+                      : (isActive ? '#6fea8d' : isPaused ? '#f59e0b' : isExpired ? '#ef4444' : '#555'),
                   }}>
-                    {isPaused ? `⏸ ${getTeamTimerDisplay(tId)}` : getTeamTimerDisplay(tId)}
+                    {(teamStage === 'stage1' || teamStage === 'stage1_ready')
+                      ? (s1Paused ? `⏸ ${getStage1TimerDisplay(tId)}` : getStage1TimerDisplay(tId))
+                      : (isPaused ? `⏸ ${getTeamTimerDisplay(tId)}` : getTeamTimerDisplay(tId))
+                    }
                   </div>
                 </div>
 
@@ -516,85 +562,154 @@ export function Admin() {
                   </div>
                 )}
 
-                {/* Timer controls */}
-                <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
-                  <button
-                    onClick={() => startTimer(tId)}
-                    disabled={isActive || isPaused || isDone}
-                    style={{
-                      flex: 1, padding: '7px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                      background: isActive || isPaused || isDone ? 'rgba(255,255,255,0.02)' : 'rgba(111,234,141,0.08)',
-                      border: `1px solid ${isActive || isPaused || isDone ? 'rgba(255,255,255,0.04)' : 'rgba(111,234,141,0.2)'}`,
-                      color: isActive || isPaused || isDone ? '#444' : '#6fea8d',
-                      cursor: isActive || isPaused || isDone ? 'not-allowed' : 'pointer',
-                      fontFamily: "'Noto Serif KR', serif",
-                    }}
-                  >▶ 시작</button>
-                  {isPaused ? (
-                    <button
-                      onClick={() => resumeTimer(tId)}
-                      style={{
-                        flex: 1, padding: '7px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                        background: 'rgba(111,234,141,0.08)',
-                        border: '1px solid rgba(111,234,141,0.2)',
-                        color: '#6fea8d',
-                        cursor: 'pointer',
-                        fontFamily: "'Noto Serif KR', serif",
-                      }}
-                    >▶ 재개</button>
-                  ) : (
-                    <button
-                      onClick={() => pauseTimer(tId)}
-                      disabled={!isActive}
-                      style={{
-                        flex: 1, padding: '7px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                        background: !isActive ? 'rgba(255,255,255,0.02)' : 'rgba(245,158,11,0.08)',
-                        border: `1px solid ${!isActive ? 'rgba(255,255,255,0.04)' : 'rgba(245,158,11,0.2)'}`,
-                        color: !isActive ? '#444' : '#f59e0b',
-                        cursor: !isActive ? 'not-allowed' : 'pointer',
-                        fontFamily: "'Noto Serif KR', serif",
-                      }}
-                    >⏸ 일시정지</button>
-                  )}
-                  <button
-                    onClick={() => stopTimer(tId)}
-                    disabled={!isActive && !isPaused}
-                    style={{
-                      padding: '7px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                      background: !isActive && !isPaused ? 'rgba(255,255,255,0.02)' : 'rgba(239,68,68,0.08)',
-                      border: `1px solid ${!isActive && !isPaused ? 'rgba(255,255,255,0.04)' : 'rgba(239,68,68,0.2)'}`,
-                      color: !isActive && !isPaused ? '#444' : '#f87171',
-                      cursor: !isActive && !isPaused ? 'not-allowed' : 'pointer',
-                      fontFamily: "'Noto Serif KR', serif",
-                    }}
-                  >■</button>
-                  <button
-                    onClick={() => { setSelectedChatTeam(tId); document.getElementById('admin-chat-section')?.scrollIntoView({ behavior: 'smooth' }) }}
-                    style={{
-                      padding: '7px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                      background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)',
-                      color: '#60a5fa', cursor: 'pointer', fontFamily: "'Noto Serif KR', serif",
-                      position: 'relative',
-                    }}
-                  >
-                    💬
-                    {teamUnread > 0 && (
-                      <span style={{
-                        position: 'absolute', top: -4, right: -4,
-                        background: '#ef4444', color: '#fff', borderRadius: '50%',
-                        width: 14, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 8, fontWeight: 700,
-                      }}>{teamUnread}</span>
+                {/* Stage + Timer controls */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 12 }}>
+                  {/* Stage selector */}
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {(['stage1_ready', 'stage2_ready'] as const).map(s => {
+                      const label = s === 'stage1_ready' ? 'S1 준비' : 'S2 준비'
+                      const active = teamStage === s || (s === 'stage1_ready' && teamStage === 'stage1') || (s === 'stage2_ready' && teamStage === 'stage2')
+                      return (
+                        <button key={s} onClick={() => setTeamStage(tId, s)}
+                          style={{
+                            flex: 1, padding: '5px', borderRadius: 5, fontSize: 10, fontWeight: 600,
+                            background: active ? 'rgba(212,168,83,0.1)' : 'rgba(255,255,255,0.02)',
+                            border: `1px solid ${active ? 'rgba(212,168,83,0.3)' : 'rgba(255,255,255,0.04)'}`,
+                            color: active ? '#d4a853' : '#555',
+                            cursor: 'pointer', fontFamily: "'Noto Serif KR', serif",
+                          }}
+                        >{label}</button>
+                      )
+                    })}
+                  </div>
+
+                  {/* Timer controls - changes based on stage */}
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {(teamStage === 'stage1_ready' || teamStage === 'stage1') ? (
+                      <>
+                        <button onClick={() => stage1StartTimer(tId)}
+                          disabled={s1Active || s1Paused}
+                          style={{
+                            flex: 1, padding: '7px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                            background: s1Active || s1Paused ? 'rgba(255,255,255,0.02)' : 'rgba(111,234,141,0.08)',
+                            border: `1px solid ${s1Active || s1Paused ? 'rgba(255,255,255,0.04)' : 'rgba(111,234,141,0.2)'}`,
+                            color: s1Active || s1Paused ? '#444' : '#6fea8d',
+                            cursor: s1Active || s1Paused ? 'not-allowed' : 'pointer',
+                            fontFamily: "'Noto Serif KR', serif",
+                          }}
+                        >▶ S1 시작</button>
+                        {s1Paused ? (
+                          <button onClick={() => stage1ResumeTimer(tId)}
+                            style={{
+                              flex: 1, padding: '7px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                              background: 'rgba(111,234,141,0.08)', border: '1px solid rgba(111,234,141,0.2)',
+                              color: '#6fea8d', cursor: 'pointer', fontFamily: "'Noto Serif KR', serif",
+                            }}
+                          >▶ 재개</button>
+                        ) : (
+                          <button onClick={() => stage1PauseTimer(tId)}
+                            disabled={!s1Active}
+                            style={{
+                              flex: 1, padding: '7px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                              background: !s1Active ? 'rgba(255,255,255,0.02)' : 'rgba(245,158,11,0.08)',
+                              border: `1px solid ${!s1Active ? 'rgba(255,255,255,0.04)' : 'rgba(245,158,11,0.2)'}`,
+                              color: !s1Active ? '#444' : '#f59e0b',
+                              cursor: !s1Active ? 'not-allowed' : 'pointer',
+                              fontFamily: "'Noto Serif KR', serif",
+                            }}
+                          >⏸</button>
+                        )}
+                        <button onClick={() => stage1StopTimer(tId)}
+                          disabled={!s1Active && !s1Paused}
+                          style={{
+                            padding: '7px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                            background: !s1Active && !s1Paused ? 'rgba(255,255,255,0.02)' : 'rgba(239,68,68,0.08)',
+                            border: `1px solid ${!s1Active && !s1Paused ? 'rgba(255,255,255,0.04)' : 'rgba(239,68,68,0.2)'}`,
+                            color: !s1Active && !s1Paused ? '#444' : '#f87171',
+                            cursor: !s1Active && !s1Paused ? 'not-allowed' : 'pointer',
+                            fontFamily: "'Noto Serif KR', serif",
+                          }}
+                        >■</button>
+                      </>
+                    ) : (teamStage === 'stage2_ready' || teamStage === 'stage2') ? (
+                      <>
+                        <button onClick={() => startTimer(tId)}
+                          disabled={isActive || isPaused || isDone}
+                          style={{
+                            flex: 1, padding: '7px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                            background: isActive || isPaused || isDone ? 'rgba(255,255,255,0.02)' : 'rgba(111,234,141,0.08)',
+                            border: `1px solid ${isActive || isPaused || isDone ? 'rgba(255,255,255,0.04)' : 'rgba(111,234,141,0.2)'}`,
+                            color: isActive || isPaused || isDone ? '#444' : '#6fea8d',
+                            cursor: isActive || isPaused || isDone ? 'not-allowed' : 'pointer',
+                            fontFamily: "'Noto Serif KR', serif",
+                          }}
+                        >▶ S2 시작</button>
+                        {isPaused ? (
+                          <button onClick={() => resumeTimer(tId)}
+                            style={{
+                              flex: 1, padding: '7px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                              background: 'rgba(111,234,141,0.08)', border: '1px solid rgba(111,234,141,0.2)',
+                              color: '#6fea8d', cursor: 'pointer', fontFamily: "'Noto Serif KR', serif",
+                            }}
+                          >▶ 재개</button>
+                        ) : (
+                          <button onClick={() => pauseTimer(tId)}
+                            disabled={!isActive}
+                            style={{
+                              flex: 1, padding: '7px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                              background: !isActive ? 'rgba(255,255,255,0.02)' : 'rgba(245,158,11,0.08)',
+                              border: `1px solid ${!isActive ? 'rgba(255,255,255,0.04)' : 'rgba(245,158,11,0.2)'}`,
+                              color: !isActive ? '#444' : '#f59e0b',
+                              cursor: !isActive ? 'not-allowed' : 'pointer',
+                              fontFamily: "'Noto Serif KR', serif",
+                            }}
+                          >⏸</button>
+                        )}
+                        <button onClick={() => stopTimer(tId)}
+                          disabled={!isActive && !isPaused}
+                          style={{
+                            padding: '7px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                            background: !isActive && !isPaused ? 'rgba(255,255,255,0.02)' : 'rgba(239,68,68,0.08)',
+                            border: `1px solid ${!isActive && !isPaused ? 'rgba(255,255,255,0.04)' : 'rgba(239,68,68,0.2)'}`,
+                            color: !isActive && !isPaused ? '#444' : '#f87171',
+                            cursor: !isActive && !isPaused ? 'not-allowed' : 'pointer',
+                            fontFamily: "'Noto Serif KR', serif",
+                          }}
+                        >■</button>
+                      </>
+                    ) : (
+                      <div style={{ flex: 1, padding: '7px', fontSize: 11, color: '#555', textAlign: 'center' }}>
+                        스테이지를 선택하세요
+                      </div>
                     )}
-                  </button>
-                  <button
-                    onClick={() => resetTeam(tId)}
-                    style={{
-                      padding: '7px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                      background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
-                      color: '#f59e0b', cursor: 'pointer', fontFamily: "'Noto Serif KR', serif",
-                    }}
-                  >↺</button>
+                    <button
+                      onClick={() => { setSelectedChatTeam(tId); document.getElementById('admin-chat-section')?.scrollIntoView({ behavior: 'smooth' }) }}
+                      style={{
+                        padding: '7px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                        background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)',
+                        color: '#60a5fa', cursor: 'pointer', fontFamily: "'Noto Serif KR', serif",
+                        position: 'relative',
+                      }}
+                    >
+                      💬
+                      {teamUnread > 0 && (
+                        <span style={{
+                          position: 'absolute', top: -4, right: -4,
+                          background: '#ef4444', color: '#fff', borderRadius: '50%',
+                          width: 14, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 8, fontWeight: 700,
+                        }}>{teamUnread}</span>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => resetTeam(tId)}
+                      style={{
+                        padding: '7px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                        background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
+                        color: '#f59e0b', cursor: 'pointer', fontFamily: "'Noto Serif KR', serif",
+                      }}
+                    >↺</button>
+                  </div>
                 </div>
               </div>
             )

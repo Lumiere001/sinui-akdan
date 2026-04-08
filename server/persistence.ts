@@ -12,12 +12,19 @@ function createInitialGameState(): GameState {
   for (let i = 1; i <= 11; i++) {
     teams[i] = {
       teamId: i,
+      stage: 'idle',
       members: {},
+      stage1TimerStartTime: null,
+      stage1TimerDuration: 40 * 60 * 1000,
+      stage1TimerActive: false,
+      stage1TimerExpired: false,
+      stage1TimerPaused: false,
+      stage1TimerRemainingAtPause: null,
       currentStep: 0,
       completedSteps: [],
       isComplete: false,
       timerStartTime: null,
-      timerDuration: 30 * 60 * 1000, // 30 minutes
+      timerDuration: 30 * 60 * 1000,
       isTimerActive: false,
       isTimerExpired: false,
       isTimerPaused: false,

@@ -9,7 +9,7 @@ import {
   calculateDistance,
   getDirectionBearing,
 } from '../data/gameData'
-import type { Location, PlayerPosition, ChatMessage } from '../../../shared/types'
+import type { Location, PlayerPosition, ChatMessage, TeamStage } from '../../../shared/types'
 
 const DIRECTION_ARROWS = ['↑', '↗', '→', '↘', '↓', '↙', '←', '↖'] as const
 
@@ -39,7 +39,18 @@ export function Game() {
   const [teamPassword] = useState(() => localStorage.getItem('teamPassword') || '')
   const [isRepresentative] = useState(() => localStorage.getItem('isRepresentative') === 'true')
 
-  // Game state
+  // Stage state
+  const [stage, setStage] = useState<TeamStage>('idle')
+
+  // Stage 1 timer state
+  const [s1TimerActive, setS1TimerActive] = useState(false)
+  const [s1TimerPaused, setS1TimerPaused] = useState(false)
+  const [s1TimerExpired, setS1TimerExpired] = useState(false)
+  const [s1TimerStartTime, setS1TimerStartTime] = useState<number | null>(null)
+  const [s1TimerDuration, setS1TimerDuration] = useState(40 * 60 * 1000)
+  const [s1TimerDisplay, setS1TimerDisplay] = useState('40:00')
+
+  // Stage 2 game state
   const [currentStep, setCurrentStep] = useState(0)
   const [hint, setHint] = useState('')
   const [stepLocations, setStepLocations] = useState<StepLocations | null>(null)
@@ -111,6 +122,17 @@ export function Game() {
     socket.on('game:state', (state) => {
       const team = state.teams[teamId]
       if (team) {
+        // Stage
+        setStage(team.stage || 'idle')
+        // Stage 1 timer
+        setS1TimerActive(team.stage1TimerActive || false)
+        setS1TimerPaused(team.stage1TimerPaused || false)
+        setS1TimerExpired(team.stage1TimerExpired || false)
+        if (team.stage1TimerStartTime) {
+          setS1TimerStartTime(team.stage1TimerStartTime)
+          setS1TimerDuration(team.stage1TimerDuration)
+        }
+        // Stage 2
         setCurrentStep(team.currentStep)
         setCompletedSteps(team.completedSteps)
         setIsComplete(team.isComplete)
@@ -170,6 +192,53 @@ export function Game() {
       }
     })
 
+    // Stage change
+    socket.on('team:stageChange', (data) => {
+      if (data.teamId === teamId) {
+        setStage(data.stage)
+      }
+    })
+
+    // Stage 1 timer events
+    socket.on('team:stage1TimerStart', (data) => {
+      if (data.teamId === teamId) {
+        setS1TimerActive(true)
+        setS1TimerPaused(false)
+        setS1TimerExpired(false)
+        setS1TimerStartTime(Date.now())
+        setS1TimerDuration(data.duration)
+      }
+    })
+
+    socket.on('team:stage1TimerPaused', (data) => {
+      if (data.teamId === teamId) {
+        setS1TimerActive(false)
+        setS1TimerPaused(true)
+        const remaining = data.remaining
+        const mins = Math.floor(remaining / 60000)
+        const secs = Math.floor((remaining % 60000) / 1000)
+        setS1TimerDisplay(`${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`)
+      }
+    })
+
+    socket.on('team:stage1TimerResumed', (data) => {
+      if (data.teamId === teamId) {
+        setS1TimerActive(true)
+        setS1TimerPaused(false)
+        setS1TimerStartTime(Date.now())
+        setS1TimerDuration(data.duration)
+      }
+    })
+
+    socket.on('team:stage1TimerExpired', (data) => {
+      if (data.teamId === teamId) {
+        setS1TimerActive(false)
+        setS1TimerPaused(false)
+        setS1TimerExpired(true)
+      }
+    })
+
+    // Stage 2 timer events
     socket.on('team:timerPaused', (data) => {
       if (data.teamId === teamId) {
         setIsTimerActive(false)
@@ -243,6 +312,11 @@ export function Game() {
       socket.off('team:stepComplete')
       socket.off('team:wrong')
       socket.off('team:complete')
+      socket.off('team:stageChange')
+      socket.off('team:stage1TimerStart')
+      socket.off('team:stage1TimerPaused')
+      socket.off('team:stage1TimerResumed')
+      socket.off('team:stage1TimerExpired')
       socket.off('team:timerStart')
       socket.off('team:timerPaused')
       socket.off('team:timerResumed')
@@ -285,6 +359,23 @@ export function Game() {
     }, 1000)
     return () => clearInterval(interval)
   }, [isTimerActive, isTimerPaused, timerStartTime, timerDuration, isTimerExpired])
+
+  // Stage 1 timer display
+  useEffect(() => {
+    if (s1TimerPaused) return
+    if (!s1TimerActive || !s1TimerStartTime) {
+      if (!s1TimerActive && !s1TimerExpired && !s1TimerPaused) setS1TimerDisplay('40:00')
+      return
+    }
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - s1TimerStartTime
+      const remaining = Math.max(0, s1TimerDuration - elapsed)
+      const mins = Math.floor(remaining / 60000)
+      const secs = Math.floor((remaining % 60000) / 1000)
+      setS1TimerDisplay(`${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`)
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [s1TimerActive, s1TimerPaused, s1TimerStartTime, s1TimerDuration, s1TimerExpired])
 
   // Scroll chat to bottom
   useEffect(() => {
@@ -331,6 +422,182 @@ export function Game() {
     return { distance: dist, arrow, status }
   }
 
+  // ========== Stage 1 / Stage 1 Ready / Idle Rendering ==========
+  if (stage === 'idle' || stage === 'stage1_ready' || stage === 'stage1') {
+    return (
+      <div style={{ background: '#0a0a0f', minHeight: '100vh', color: '#e0e0e0', fontFamily: "'Noto Serif KR', serif", display: 'flex', flexDirection: 'column' }}>
+        {/* Header */}
+        <div style={{ position: 'sticky', top: 0, zIndex: 50, background: '#0a0a0f', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '12px 16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 13, color: '#6fea8d' }}>팀 {teamId}</span>
+              <span style={{
+                width: 6, height: 6, borderRadius: '50%',
+                background: isConnected ? '#6fea8d' : '#ef4444',
+                display: 'inline-block',
+              }} />
+            </div>
+            <span style={{ fontSize: 11, color: '#666' }}>
+              {stage === 'idle' ? '대기 중' : stage === 'stage1_ready' ? 'Stage 1 준비' : 'Stage 1'}
+            </span>
+          </div>
+        </div>
+
+        {/* Main content */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 24px' }}>
+          {stage === 'idle' && (
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 48, marginBottom: 20 }}>🎼</div>
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: '#e0e0e0', marginBottom: 8 }}>신의 악단</h2>
+              <p style={{ fontSize: 14, color: '#666' }}>관리자가 게임을 시작할 때까지 대기해주세요</p>
+            </div>
+          )}
+
+          {stage === 'stage1_ready' && (
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 48, marginBottom: 20 }}>🔐</div>
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: '#f59e0b', marginBottom: 8 }}>Stage 1 준비</h2>
+              <p style={{ fontSize: 14, color: '#888' }}>곧 시작됩니다. 준비해주세요!</p>
+              <div style={{
+                marginTop: 24, fontSize: 64, fontWeight: 700,
+                color: 'rgba(245,158,11,0.3)', fontVariantNumeric: 'tabular-nums',
+                fontFamily: 'monospace',
+              }}>
+                40:00
+              </div>
+            </div>
+          )}
+
+          {stage === 'stage1' && (
+            <div style={{ textAlign: 'center', width: '100%' }}>
+              {/* Timer icon */}
+              <div style={{ fontSize: 36, marginBottom: 16 }}>
+                {s1TimerExpired ? '⏰' : s1TimerPaused ? '⏸️' : '🔐'}
+              </div>
+
+              {/* Stage label */}
+              <div style={{ fontSize: 13, color: '#888', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 }}>
+                Stage 1
+              </div>
+
+              {/* Big timer */}
+              <div style={{
+                fontSize: 80, fontWeight: 700, lineHeight: 1,
+                fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace',
+                color: s1TimerExpired ? '#ef4444' : s1TimerPaused ? '#f59e0b' : '#e0e0e0',
+                marginBottom: 16,
+                animation: s1TimerPaused ? 'pulse 1.5s ease-in-out infinite' : 'none',
+              }}>
+                {s1TimerDisplay}
+              </div>
+
+              {/* Status text */}
+              <div style={{ fontSize: 14, color: '#666' }}>
+                {s1TimerExpired ? '시간이 종료되었습니다' : s1TimerPaused ? '일시정지됨' : s1TimerActive ? '진행 중...' : '대기 중'}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Error message */}
+        {errorMsg && (
+          <div style={{
+            position: 'fixed', top: 60, left: '50%', transform: 'translateX(-50%)',
+            background: 'rgba(239,68,68,0.9)', color: '#fff', padding: '8px 16px',
+            borderRadius: 8, fontSize: 13, zIndex: 100,
+          }}>
+            {errorMsg}
+          </div>
+        )}
+
+        {/* Chat (always available for representative) */}
+        {isRepresentative && (
+          <div style={{ position: 'fixed', bottom: 16, right: 16, zIndex: 110 }}>
+            {!chatOpen && (
+              <button
+                onClick={() => setChatOpen(true)}
+                style={{
+                  width: 52, height: 52, borderRadius: '50%',
+                  background: '#6fea8d', color: '#0a0a0f',
+                  border: 'none', cursor: 'pointer',
+                  fontSize: 22, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 4px 16px rgba(111,234,141,0.3)', position: 'relative',
+                }}>
+                💬
+                {unreadCount > 0 && (
+                  <span style={{
+                    position: 'absolute', top: -4, right: -4,
+                    background: '#ef4444', color: '#fff', borderRadius: '50%',
+                    width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 11, fontWeight: 700,
+                  }}>{unreadCount}</span>
+                )}
+              </button>
+            )}
+            {chatOpen && (
+              <div style={{
+                width: 300, height: 400, borderRadius: 16,
+                background: '#111318', border: '1px solid rgba(111,234,141,0.15)',
+                display: 'flex', flexDirection: 'column', overflow: 'hidden',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+              }}>
+                <div style={{
+                  padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#6fea8d' }}>관리자 채팅</span>
+                  <button onClick={() => setChatOpen(false)} style={{
+                    background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: 16,
+                  }}>✕</button>
+                </div>
+                <div style={{ flex: 1, overflowY: 'auto', padding: 10 }}>
+                  {chatMessages.map((msg, i) => (
+                    <div key={msg.id || i} style={{
+                      marginBottom: 8, display: 'flex', flexDirection: 'column',
+                      alignItems: msg.isAdmin ? 'flex-start' : 'flex-end',
+                    }}>
+                      <div style={{ fontSize: 9, color: '#555', marginBottom: 2 }}>
+                        {msg.isAdmin ? '관리자' : msg.senderName}
+                      </div>
+                      <div style={{
+                        padding: '7px 11px', borderRadius: 10, maxWidth: '80%',
+                        background: msg.isAdmin ? 'rgba(111,234,141,0.1)' : 'rgba(255,255,255,0.06)',
+                        fontSize: 13, lineHeight: 1.4,
+                      }}>{msg.message}</div>
+                    </div>
+                  ))}
+                  <div ref={chatEndRef} />
+                </div>
+                <div style={{ padding: 8, borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: 6 }}>
+                  <input
+                    value={chatInput}
+                    onChange={e => setChatInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) sendChatMessage() }}
+                    placeholder="메시지 입력..."
+                    style={{
+                      flex: 1, padding: '8px 10px', borderRadius: 8,
+                      background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
+                      color: '#e0e0e0', fontSize: 12, outline: 'none',
+                      fontFamily: "'Noto Serif KR', serif",
+                    }}
+                  />
+                  <button onClick={sendChatMessage} style={{
+                    padding: '8px 12px', borderRadius: 8,
+                    background: chatInput.trim() ? '#6fea8d' : 'rgba(255,255,255,0.04)',
+                    color: chatInput.trim() ? '#0a0a0f' : '#444',
+                    border: 'none', cursor: chatInput.trim() ? 'pointer' : 'default',
+                    fontSize: 12, fontWeight: 600, fontFamily: "'Noto Serif KR', serif",
+                  }}>전송</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ========== Stage 2 (existing game view) ==========
   return (
     <div style={{ background: '#0a0a0f', minHeight: '100vh', color: '#e0e0e0', fontFamily: "'Noto Serif KR', serif" }}>
       {/* Header */}

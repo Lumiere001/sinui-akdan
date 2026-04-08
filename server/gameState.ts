@@ -1,5 +1,5 @@
 import { loadGameState, saveGameState, debouncedSaveGameState, resetDataFile } from './persistence.js';
-import type { GameState, TeamState, PlayerPosition, PledgeRecord, ChatMessage } from './shared/types.js';
+import type { GameState, TeamState, TeamStage, PlayerPosition, PledgeRecord, ChatMessage } from './shared/types.js';
 
 /**
  * Game state management for V2
@@ -31,7 +31,96 @@ class GameStateManager {
     debouncedSaveGameState(this.state);
   }
 
-  // ========== Timer Management ==========
+  // ========== Stage Management ==========
+
+  /**
+   * Set team stage
+   */
+  setTeamStage(teamId: number, stage: TeamStage): void {
+    const team = this.state.teams[teamId];
+    if (!team) {
+      throw new Error(`Team ${teamId} not found`);
+    }
+    team.stage = stage;
+    this.saveState();
+  }
+
+  // ========== Stage 1 Timer Management (40 minutes) ==========
+
+  startStage1Timer(teamId: number): void {
+    const team = this.state.teams[teamId];
+    if (!team) throw new Error(`Team ${teamId} not found`);
+
+    team.stage = 'stage1';
+    team.stage1TimerStartTime = Date.now();
+    team.stage1TimerDuration = 40 * 60 * 1000;
+    team.stage1TimerActive = true;
+    team.stage1TimerExpired = false;
+    team.stage1TimerPaused = false;
+    team.stage1TimerRemainingAtPause = null;
+    this.saveState();
+  }
+
+  stopStage1Timer(teamId: number): void {
+    const team = this.state.teams[teamId];
+    if (!team) throw new Error(`Team ${teamId} not found`);
+
+    team.stage1TimerActive = false;
+    team.stage1TimerPaused = false;
+    team.stage1TimerRemainingAtPause = null;
+    this.saveState();
+  }
+
+  pauseStage1Timer(teamId: number): number {
+    const team = this.state.teams[teamId];
+    if (!team) throw new Error(`Team ${teamId} not found`);
+    if (!team.stage1TimerActive || !team.stage1TimerStartTime) {
+      throw new Error(`Team ${teamId} stage1 timer is not active`);
+    }
+
+    const elapsed = Date.now() - team.stage1TimerStartTime;
+    const remaining = Math.max(0, team.stage1TimerDuration - elapsed);
+
+    team.stage1TimerActive = false;
+    team.stage1TimerPaused = true;
+    team.stage1TimerRemainingAtPause = remaining;
+    this.saveState();
+    return remaining;
+  }
+
+  resumeStage1Timer(teamId: number): number {
+    const team = this.state.teams[teamId];
+    if (!team) throw new Error(`Team ${teamId} not found`);
+    if (!team.stage1TimerPaused || team.stage1TimerRemainingAtPause === null) {
+      throw new Error(`Team ${teamId} stage1 timer is not paused`);
+    }
+
+    const remaining = team.stage1TimerRemainingAtPause;
+    team.stage1TimerStartTime = Date.now();
+    team.stage1TimerDuration = remaining;
+    team.stage1TimerActive = true;
+    team.stage1TimerPaused = false;
+    team.stage1TimerRemainingAtPause = null;
+    this.saveState();
+    return remaining;
+  }
+
+  isStage1TimerExpired(teamId: number): boolean {
+    const team = this.state.teams[teamId];
+    if (!team || !team.stage1TimerStartTime || !team.stage1TimerActive) return false;
+    const elapsed = Date.now() - team.stage1TimerStartTime;
+    return elapsed >= team.stage1TimerDuration;
+  }
+
+  expireStage1Timer(teamId: number): void {
+    const team = this.state.teams[teamId];
+    if (!team) throw new Error(`Team ${teamId} not found`);
+    team.stage1TimerActive = false;
+    team.stage1TimerExpired = true;
+    this.saveState();
+  }
+
+  // ========== Stage 2 Timer Management (30 minutes) ==========
 
   /**
    * Start individual team timer
@@ -404,7 +493,14 @@ class GameStateManager {
     for (let i = 1; i <= 11; i++) {
       teams[i] = {
         teamId: i,
+        stage: 'idle',
         members: {},
+        stage1TimerStartTime: null,
+        stage1TimerDuration: 40 * 60 * 1000,
+        stage1TimerActive: false,
+        stage1TimerExpired: false,
+        stage1TimerPaused: false,
+        stage1TimerRemainingAtPause: null,
         currentStep: 0,
         completedSteps: [],
         isComplete: false,
@@ -437,7 +533,14 @@ class GameStateManager {
       return;
     }
 
+    team.stage = 'idle';
     team.members = {};
+    team.stage1TimerStartTime = null;
+    team.stage1TimerDuration = 40 * 60 * 1000;
+    team.stage1TimerActive = false;
+    team.stage1TimerExpired = false;
+    team.stage1TimerPaused = false;
+    team.stage1TimerRemainingAtPause = null;
     team.currentStep = 0;
     team.completedSteps = [];
     team.isComplete = false;

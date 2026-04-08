@@ -10,6 +10,7 @@ import type {
   ClientToServerEvents,
   ServerToClientEvents,
   PlayerPosition,
+  TeamStage,
 } from './shared/types.js';
 
 // ========== Configuration ==========
@@ -99,7 +100,14 @@ function broadcastGameState(): void {
  * Timer check interval - check every 1 second if any team timers have expired
  */
 const timerCheckInterval = setInterval(() => {
-  for (let teamId = 1; teamId <= 10; teamId++) {
+  for (let teamId = 1; teamId <= 11; teamId++) {
+    // Stage 1 timer check
+    if (gameStateManager.isStage1TimerExpired(teamId)) {
+      gameStateManager.expireStage1Timer(teamId);
+      io.to(`team:${teamId}`).emit('team:stage1TimerExpired', { teamId });
+      console.log(`[Timer] Team ${teamId} stage1 timer expired`);
+    }
+    // Stage 2 timer check
     if (gameStateManager.isTeamTimerExpired(teamId)) {
       gameStateManager.expireTeamTimer(teamId);
       io.to(`team:${teamId}`).emit('team:timerExpired', { teamId });
@@ -735,6 +743,105 @@ io.on('connection', (socket) => {
       socket.emit('error', {
         message: error instanceof Error ? error.message : 'Unknown error',
       });
+    }
+  });
+
+  /**
+   * Admin sets team stage
+   * Event: admin:setStage
+   */
+  socket.on('admin:setStage', (data: { teamId: number; stage: TeamStage }) => {
+    try {
+      const { teamId, stage } = data;
+      if (teamId < 1 || teamId > 11) {
+        socket.emit('error', { message: 'Invalid team ID' });
+        return;
+      }
+
+      gameStateManager.setTeamStage(teamId, stage);
+      io.to(`team:${teamId}`).emit('team:stageChange', { teamId, stage });
+      console.log(`[Admin] Team ${teamId} stage set to ${stage}`);
+      broadcastGameState();
+    } catch (error) {
+      console.error('[Error] admin:setStage:', error);
+      socket.emit('error', { message: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  });
+
+  /**
+   * Admin starts Stage 1 timer for a team
+   */
+  socket.on('admin:stage1StartTimer', (teamId: number) => {
+    try {
+      if (teamId < 1 || teamId > 11) {
+        socket.emit('error', { message: 'Invalid team ID' });
+        return;
+      }
+
+      gameStateManager.startStage1Timer(teamId);
+      io.to(`team:${teamId}`).emit('team:stage1TimerStart', { teamId, duration: 40 * 60 * 1000 });
+      io.to(`team:${teamId}`).emit('team:stageChange', { teamId, stage: 'stage1' });
+      console.log(`[Admin] Started stage1 timer for team ${teamId}`);
+      broadcastGameState();
+    } catch (error) {
+      console.error('[Error] admin:stage1StartTimer:', error);
+      socket.emit('error', { message: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  });
+
+  /**
+   * Admin stops Stage 1 timer
+   */
+  socket.on('admin:stage1StopTimer', (teamId: number) => {
+    try {
+      if (teamId < 1 || teamId > 11) {
+        socket.emit('error', { message: 'Invalid team ID' });
+        return;
+      }
+      gameStateManager.stopStage1Timer(teamId);
+      console.log(`[Admin] Stopped stage1 timer for team ${teamId}`);
+      broadcastGameState();
+    } catch (error) {
+      console.error('[Error] admin:stage1StopTimer:', error);
+      socket.emit('error', { message: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  });
+
+  /**
+   * Admin pauses Stage 1 timer
+   */
+  socket.on('admin:stage1PauseTimer', (teamId: number) => {
+    try {
+      if (teamId < 1 || teamId > 11) {
+        socket.emit('error', { message: 'Invalid team ID' });
+        return;
+      }
+      const remaining = gameStateManager.pauseStage1Timer(teamId);
+      io.to(`team:${teamId}`).emit('team:stage1TimerPaused', { teamId, remaining });
+      console.log(`[Admin] Paused stage1 timer for team ${teamId}`);
+      broadcastGameState();
+    } catch (error) {
+      console.error('[Error] admin:stage1PauseTimer:', error);
+      socket.emit('error', { message: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  });
+
+  /**
+   * Admin resumes Stage 1 timer
+   */
+  socket.on('admin:stage1ResumeTimer', (teamId: number) => {
+    try {
+      if (teamId < 1 || teamId > 11) {
+        socket.emit('error', { message: 'Invalid team ID' });
+        return;
+      }
+      const remaining = gameStateManager.resumeStage1Timer(teamId);
+      io.to(`team:${teamId}`).emit('team:stage1TimerResumed', { teamId, duration: remaining });
+      console.log(`[Admin] Resumed stage1 timer for team ${teamId}`);
+      broadcastGameState();
+    } catch (error) {
+      console.error('[Error] admin:stage1ResumeTimer:', error);
+      socket.emit('error', { message: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 

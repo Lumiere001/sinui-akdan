@@ -105,4 +105,5 @@ export interface ClientToServerEvents {
   'admin:startTimer': (teamId: number) => void;
   'admin:stopTimer': (teamId: number) => void;
   'admin:resetGame': () => void;
+  'admin:resetTeam': (teamId: number) => void;
 }

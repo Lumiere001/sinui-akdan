@@ -54,17 +54,45 @@ const io = new SocketIOServer<ClientToServerEvents, ServerToClientEvents>(server
 });
 
 /**
- * Broadcast game state to all connected clients
- */
-function broadcastGameState(): void {
-  const state = gameStateManager.getState();
-  io.emit('game:state', state);
-}
-
-/**
  * Track team members and their positions
  */
 const teamConnections = new Map<string, { teamId: number; playerId: string; playerName: string }>();
+
+/**
+ * Get the set of currently online playerIds
+ */
+function getOnlinePlayerIds(): Set<string> {
+  const online = new Set<string>();
+  for (const conn of teamConnections.values()) {
+    online.add(conn.playerId);
+  }
+  return online;
+}
+
+/**
+ * Broadcast game state to all connected clients
+ * Admin receives only online members; team players receive full state
+ */
+function broadcastGameState(): void {
+  const state = gameStateManager.getState();
+
+  // Send full state to team players
+  for (let t = 1; t <= 10; t++) {
+    io.to(`team:${t}`).emit('game:state', state);
+  }
+
+  // Send filtered state to admin (only online members)
+  const onlineIds = getOnlinePlayerIds();
+  const adminState = JSON.parse(JSON.stringify(state)) as typeof state;
+  for (const [teamId, team] of Object.entries(adminState.teams)) {
+    const filtered: Record<string, any> = {};
+    for (const [pid, member] of Object.entries(team.members)) {
+      if (onlineIds.has(pid)) filtered[pid] = member;
+    }
+    adminState.teams[Number(teamId)].members = filtered;
+  }
+  io.to('admin').emit('game:state', adminState);
+}
 
 /**
  * Timer check interval - check every 1 second if any team timers have expired
@@ -240,10 +268,11 @@ io.on('connection', (socket) => {
         }
       }
 
-      // Broadcast to admin
+      // Broadcast to admin (online members only)
+      const onlineIds = getOnlinePlayerIds();
       const allTeamsData: Record<number, PlayerPosition[]> = {};
       for (let t = 1; t <= 10; t++) {
-        allTeamsData[t] = gameStateManager.getTeamMembers(t);
+        allTeamsData[t] = gameStateManager.getTeamMembers(t).filter(m => onlineIds.has(m.playerId));
       }
       io.to('admin').emit('admin:allPositions', allTeamsData);
     } catch (error) {

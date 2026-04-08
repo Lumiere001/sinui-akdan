@@ -301,16 +301,6 @@ export function Admin() {
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
   }
 
-  function getStageLabel(teamId: number): string {
-    const team = gameState?.teams[teamId]
-    if (!team) return '-'
-    const labels: Record<string, string> = {
-      idle: '대기', stage1_ready: 'S1 준비', stage1: 'Stage 1',
-      stage2_ready: 'S2 준비', stage2: 'Stage 2',
-    }
-    return labels[team.stage || 'idle'] || '대기'
-  }
-
   function getStepLabel(teamId: number): string {
     const team = gameState?.teams[teamId]
     if (!team) return '-'
@@ -450,15 +440,31 @@ export function Admin() {
             const pCount = pledgeCounts[tId] || 0
             const teamUnread = unreadCounts[tId] || 0
 
+            // Stage-based styling
+            const stageBorderColor = teamUnread > 0 ? 'rgba(59,130,246,0.3)'
+              : teamStage === 'stage1' ? 'rgba(168,85,247,0.25)'
+              : teamStage === 'stage1_ready' ? 'rgba(168,85,247,0.15)'
+              : teamStage === 'stage2' ? 'rgba(59,130,246,0.25)'
+              : teamStage === 'stage2_ready' ? 'rgba(59,130,246,0.15)'
+              : isDone ? 'rgba(111,234,141,0.2)' : isExpired ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.06)'
+            const stageBgColor = teamUnread > 0 ? 'rgba(59,130,246,0.04)'
+              : teamStage === 'stage1' ? 'rgba(168,85,247,0.04)'
+              : teamStage === 'stage2' ? 'rgba(59,130,246,0.04)'
+              : isDone ? 'rgba(111,234,141,0.06)' : isExpired ? 'rgba(239,68,68,0.06)' : 'rgba(255,255,255,0.03)'
+            const stageBadgeConfig: Record<string, { label: string; color: string; bg: string }> = {
+              idle: { label: '대기', color: '#666', bg: 'rgba(255,255,255,0.04)' },
+              stage1_ready: { label: 'S1 준비', color: '#a855f7', bg: 'rgba(168,85,247,0.1)' },
+              stage1: { label: 'Stage 1', color: '#a855f7', bg: 'rgba(168,85,247,0.15)' },
+              stage2_ready: { label: 'S2 준비', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
+              stage2: { label: 'Stage 2', color: '#3b82f6', bg: 'rgba(59,130,246,0.15)' },
+            }
+            const badge = stageBadgeConfig[teamStage] || stageBadgeConfig.idle
+
             return (
               <div key={tId} style={{
                 padding: '12px', borderRadius: 10, position: 'relative',
-                background: teamUnread > 0
-                  ? 'rgba(59,130,246,0.04)'
-                  : isDone ? 'rgba(111,234,141,0.06)' : isExpired ? 'rgba(239,68,68,0.06)' : 'rgba(255,255,255,0.03)',
-                border: `1px solid ${teamUnread > 0
-                  ? 'rgba(59,130,246,0.3)'
-                  : isDone ? 'rgba(111,234,141,0.2)' : isExpired ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.06)'}`,
+                background: stageBgColor,
+                border: `1px solid ${stageBorderColor}`,
               }}>
                 {/* Unread indicator dot */}
                 {teamUnread > 0 && (
@@ -471,6 +477,24 @@ export function Admin() {
                     boxShadow: '0 0 8px rgba(59,130,246,0.5)',
                   }}>{teamUnread}</span>
                 )}
+
+                {/* Stage badge bar */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{
+                    padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700,
+                    background: badge.bg, color: badge.color, letterSpacing: 0.5,
+                    border: `1px solid ${badge.color}30`,
+                  }}>{badge.label}</span>
+                  {teamStage === 'stage2' && (
+                    <span style={{ fontSize: 10, color: '#666' }}>단계 {getStepLabel(tId)}</span>
+                  )}
+                  {(teamStage === 'stage1' && s1Active) && (
+                    <span style={{ fontSize: 10, color: '#a855f7' }}>진행 중</span>
+                  )}
+                  {(teamStage === 'stage1' && s1Expired) && (
+                    <span style={{ fontSize: 10, color: '#ef4444' }}>시간 종료</span>
+                  )}
+                </div>
 
                 {/* Team header row */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -492,15 +516,13 @@ export function Admin() {
                       <div style={{ fontSize: 10, color: '#666', display: 'flex', gap: 6 }}>
                         <span>👥 {memberCount}명</span>
                         <span>📜 {pCount}명</span>
-                        <span>{getStageLabel(tId)}</span>
-                        {teamStage === 'stage2' && <span>단계 {getStepLabel(tId)}</span>}
                       </div>
                     </div>
                   </div>
                   <div style={{
                     fontFamily: 'monospace', fontSize: 16, fontWeight: 600,
                     color: (teamStage === 'stage1' || teamStage === 'stage1_ready')
-                      ? (s1Active ? '#6fea8d' : s1Paused ? '#f59e0b' : s1Expired ? '#ef4444' : '#555')
+                      ? (s1Active ? '#a855f7' : s1Paused ? '#f59e0b' : s1Expired ? '#ef4444' : '#555')
                       : (isActive ? '#6fea8d' : isPaused ? '#f59e0b' : isExpired ? '#ef4444' : '#555'),
                   }}>
                     {(teamStage === 'stage1' || teamStage === 'stage1_ready')
@@ -510,16 +532,26 @@ export function Admin() {
                   </div>
                 </div>
 
-                {/* Step progress bar */}
+                {/* Stage progress indicator */}
                 <div style={{ display: 'flex', gap: 3, marginBottom: 8 }}>
+                  {/* Stage 1 indicator */}
+                  <div style={{
+                    flex: 1, height: 4, borderRadius: 2,
+                    background: teamStage === 'stage1' ? (s1Active ? '#a855f7' : s1Expired ? '#ef4444' : 'rgba(168,85,247,0.3)')
+                      : (teamStage === 'stage2' || teamStage === 'stage2_ready') ? '#a855f7'
+                      : teamStage === 'stage1_ready' ? 'rgba(168,85,247,0.3)' : 'rgba(255,255,255,0.08)',
+                    transition: 'background 0.3s',
+                  }} />
+                  {/* Stage 2 steps */}
                   {[1, 2, 3].map(step => {
                     const completed = team?.completedSteps.includes(step)
                     const current = step === team?.currentStep && !team?.isComplete
+                    const isStage2 = teamStage === 'stage2' || teamStage === 'stage2_ready'
                     return (
                       <div key={step} style={{ flex: 1, position: 'relative' }}>
                         <div style={{
                           height: 4, borderRadius: 2,
-                          background: completed ? '#6fea8d' : current ? '#d4a853' : 'rgba(255,255,255,0.08)',
+                          background: completed ? '#6fea8d' : current ? '#d4a853' : isStage2 ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.08)',
                           transition: 'background 0.3s',
                         }} />
                         <span style={{

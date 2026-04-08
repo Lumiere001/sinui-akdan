@@ -443,41 +443,6 @@ const TEAM_10_ROUTE: TeamRoute = {
   finalPhoto: 'final_T10.jpg',
 };
 
-/**
- * Team 11 route (TEST)
- * All 3 steps point to the same test location (35.176932, 126.907928)
- */
-const TEAM_11_ROUTE: TeamRoute = {
-  teamId: 11,
-  steps: [
-    {
-      stepNumber: 1,
-      hint: '테스트 힌트 1단계: 이곳은 테스트 장소입니다. 가까이 가세요.',
-      correctLocation: 'test_A',
-      wrongLocation: 'test_B',
-      correctPhoto: 'step_T1_S1_correct.jpg',
-      wrongPhoto: 'step_T1_S1_wrong.jpg',
-    },
-    {
-      stepNumber: 2,
-      hint: '테스트 힌트 2단계: 다시 같은 장소로 가세요.',
-      correctLocation: 'test_A',
-      wrongLocation: 'test_B',
-      correctPhoto: 'step_T1_S2_correct.jpg',
-      wrongPhoto: 'step_T1_S2_wrong.jpg',
-    },
-    {
-      stepNumber: 3,
-      hint: '테스트 힌트 3단계: 마지막으로 한 번 더 같은 장소로!',
-      correctLocation: 'test_A',
-      wrongLocation: 'test_B',
-      correctPhoto: 'step_T1_S3_correct.jpg',
-      wrongPhoto: 'step_T1_S3_wrong.jpg',
-    },
-  ],
-  finalPhoto: 'final_T1.jpg',
-};
-
 const TEAM_ROUTES: Record<number, TeamRoute> = {
   1: TEAM_1_ROUTE,
   2: TEAM_2_ROUTE,
@@ -489,7 +454,6 @@ const TEAM_ROUTES: Record<number, TeamRoute> = {
   8: TEAM_8_ROUTE,
   9: TEAM_9_ROUTE,
   10: TEAM_10_ROUTE,
-  11: TEAM_11_ROUTE,
 };
 
 /**

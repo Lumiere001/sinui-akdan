@@ -82,7 +82,7 @@ export function checkTeamPresence(
   gameStateManager: any,
 ): TeamPresenceResult {
   const TEAM_CHECK_RADIUS = 50; // meters
-  const REQUIRED_MEMBERS = teamId === 11 ? 1 : 3;  // Test team needs only 1
+  const REQUIRED_MEMBERS = 3;
 
   const location = getLocation(locationId);
   if (!location) {

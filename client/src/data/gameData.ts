@@ -17,7 +17,6 @@ export const LOCATIONS: Location[] = [
 export const TEAM_PASSWORDS: Record<number, string> = {
   1: '1111', 2: '2222', 3: '3333', 4: '4444', 5: '5555',
   6: '6666', 7: '7777', 8: '8888', 9: '9999', 10: '0000',
-  11: '1234',  // Test team
 }
 
 // ========== 헬퍼 함수 ==========

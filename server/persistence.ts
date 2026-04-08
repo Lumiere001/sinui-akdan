@@ -9,7 +9,7 @@ const DATA_FILE = path.join(process.cwd(), 'data.json');
  */
 function createInitialGameState(): GameState {
   const teams: Record<number, any> = {};
-  for (let i = 1; i <= 11; i++) {
+  for (let i = 1; i <= 10; i++) {
     teams[i] = {
       teamId: i,
       stage: 'idle',

@@ -48,8 +48,8 @@ export function Landing() {
 
   const handleLogin = () => {
     const teamNum = parseInt(teamInput, 10)
-    if (!teamNum || teamNum < 1 || teamNum > 11) {
-      setError('팀 번호를 확인해주세요 (1-11)')
+    if (!teamNum || teamNum < 1 || teamNum > 10) {
+      setError('팀 번호를 확인해주세요 (1-10)')
       return
     }
     if (!nameInput.trim()) {
@@ -274,7 +274,7 @@ export function Landing() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md, marginBottom: spacing.lg }}>
           {[
             { label: '이름', type: 'text', value: nameInput, onChange: (v: string) => { setNameInput(v); setError('') }, placeholder: '이름을 입력하세요' },
-            { label: '팀 번호', type: 'number', value: teamInput, onChange: (v: string) => { setTeamInput(v); setError('') }, placeholder: '1 - 11', extra: { min: '1', max: '11', inputMode: 'numeric' as const } },
+            { label: '팀 번호', type: 'number', value: teamInput, onChange: (v: string) => { setTeamInput(v); setError('') }, placeholder: '1 - 10', extra: { min: '1', max: '10', inputMode: 'numeric' as const } },
             { label: '비밀번호', type: 'password', value: passwordInput, onChange: (v: string) => { setPasswordInput(v); setError('') }, placeholder: '4자리 숫자', extra: { inputMode: 'numeric' as const, maxLength: 4 } },
           ].map((field, i) => (
             <div key={i}>

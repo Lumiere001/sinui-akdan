@@ -65,7 +65,7 @@ function AdminMap({ gameState, round }: { gameState: GameState | null; round: 1 
     markersRef.current.forEach(m => m.setMap(null))
     markersRef.current = []
 
-    const teamIds = round === 1 ? [1, 2, 3, 4, 5] : round === 2 ? [6, 7, 8, 9, 10] : [11]
+    const teamIds = round === 1 ? [1, 2, 3, 4, 5] : [6, 7, 8, 9, 10]
 
     teamIds.forEach(tId => {
       const team = gameState.teams[tId]
@@ -213,7 +213,7 @@ export function Admin() {
   // Unread counts (only count participant messages, not admin)
   const unreadCounts = useMemo(() => {
     const counts: Record<number, number> = {}
-    for (let t = 1; t <= 11; t++) {
+    for (let t = 1; t <= 10; t++) {
       const msgs = chatMessages[t] || []
       const lastRead = lastReadCounts[t] || 0
       // Count only non-admin messages after the last read position
@@ -230,7 +230,7 @@ export function Admin() {
   const pledgeCounts = useMemo(() => {
     if (!gameState) return {} as Record<number, number>
     const counts: Record<number, number> = {}
-    for (let t = 1; t <= 11; t++) counts[t] = 0
+    for (let t = 1; t <= 10; t++) counts[t] = 0
     Object.values(gameState.pledges).forEach(p => {
       if (counts[p.teamId] !== undefined) counts[p.teamId]++
     })
@@ -348,7 +348,7 @@ export function Admin() {
 
   const totalPledges = gameState ? Object.keys(gameState.pledges).length : 0
 
-  const roundTeams = activeRound === 1 ? [1, 2, 3, 4, 5] : activeRound === 2 ? [6, 7, 8, 9, 10] : [11]
+  const roundTeams = activeRound === 1 ? [1, 2, 3, 4, 5] : [6, 7, 8, 9, 10]
   const selectedTeamMsgs = chatMessages[selectedChatTeam] || []
 
   const totalUnread = Object.values(unreadCounts).reduce((s, c) => s + c, 0)
@@ -387,7 +387,7 @@ export function Admin() {
 
       {/* ===== Round Tabs ===== */}
       <div style={{ display: 'flex', borderBottom: `1px solid ${colors.borderLight}` }}>
-        {([1, 2, 3] as const).map(r => (
+        {([1, 2] as const).map(r => (
           <button
             key={r}
             onClick={() => setActiveRound(r)}
@@ -401,7 +401,7 @@ export function Admin() {
               transition: transitions.normal,
             }}
           >
-            {r === 1 ? '🅰 라운드 1 (팀 1-5)' : r === 2 ? '🅱 라운드 2 (팀 6-10)' : '🧪 테스트 (팀 11)'}
+            {r === 1 ? '🅰 라운드 1 (팀 1-5)' : '🅱 라운드 2 (팀 6-10)'}
           </button>
         ))}
       </div>
@@ -778,7 +778,7 @@ export function Admin() {
 
           {/* Team chat tabs */}
           <div style={{ display: 'flex', gap: spacing.xs, marginBottom: spacing.md, flexWrap: 'wrap' }}>
-            {Array.from({ length: 11 }, (_, i) => i + 1).map(tId => {
+            {Array.from({ length: 10 }, (_, i) => i + 1).map(tId => {
               const unread = unreadCounts[tId] || 0
               const isSelected = selectedChatTeam === tId
               return (

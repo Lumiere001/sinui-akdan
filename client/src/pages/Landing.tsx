@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { validateTeamLogin } from '../data/gameData'
+import { useSocket } from '../hooks/useSocket'
 import { colors, typography, spacing, radius, shadows, transitions } from '../theme'
 
 /**
@@ -38,13 +39,15 @@ function useKakaoInAppRedirect() {
 
 export function Landing() {
   const navigate = useNavigate()
+  const { socket, isConnected } = useSocket()
   const isKakaoInApp = useKakaoInAppRedirect()
   const [teamInput, setTeamInput] = useState('')
   const [passwordInput, setPasswordInput] = useState('')
   const [nameInput, setNameInput] = useState('')
   const [isRepresentative, setIsRepresentative] = useState(false)
+  const [pledgeAgreed, setPledgeAgreed] = useState(false)
+  const [showPledge, setShowPledge] = useState(false)
   const [error, setError] = useState('')
-  const [showRules, setShowRules] = useState(false)
 
   const handleLogin = () => {
     const teamNum = parseInt(teamInput, 10)
@@ -60,6 +63,10 @@ export function Landing() {
       setError('비밀번호가 올바르지 않습니다')
       return
     }
+    if (!pledgeAgreed) {
+      setError('서약에 동의해주세요')
+      return
+    }
     setError('')
     localStorage.setItem('teamId', teamNum.toString())
     localStorage.setItem('teamPassword', passwordInput)
@@ -67,10 +74,19 @@ export function Landing() {
     localStorage.setItem('isRepresentative', isRepresentative ? 'true' : 'false')
     const pid = `t${teamNum}_${nameInput.trim()}`
     localStorage.setItem('playerId', pid)
-    navigate('/pledge')
+
+    // Submit pledge via socket
+    if (socket && isConnected) {
+      socket.emit('player:join', {
+        teamId: teamNum, playerId: pid, playerName: nameInput.trim(),
+        password: passwordInput, isRepresentative,
+      })
+      socket.emit('pledge:submit', { playerId: pid, teamId: teamNum })
+    }
+    navigate('/game')
   }
 
-  const canSubmit = teamInput && passwordInput && nameInput.trim()
+  const canSubmit = teamInput && passwordInput && nameInput.trim() && pledgeAgreed
 
   // 카카오톡 인앱 브라우저일 경우 외부 브라우저 안내 화면 표시
   if (isKakaoInApp) {
@@ -200,30 +216,31 @@ export function Landing() {
           양림동의 숨겨진 장소들을 찾아<br />하나님의 악보를 완성하세요
         </p>
 
-        {/* Rules toggle */}
+        {/* Pledge (서약서) */}
         <div style={{ marginBottom: spacing.xl }}>
           <button
-            onClick={() => setShowRules(!showRules)}
+            onClick={() => setShowPledge(!showPledge)}
             style={{
               width: '100%', padding: `${spacing.md}px ${spacing.lg}px`,
-              background: colors.surface,
-              border: `1px solid ${colors.borderLight}`,
+              background: pledgeAgreed ? colors.accentMuted : colors.surface,
+              border: `1px solid ${pledgeAgreed ? colors.accentBorder : colors.borderLight}`,
               borderRadius: radius.md, cursor: 'pointer',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              color: colors.textSecondary, fontSize: typography.base,
+              color: pledgeAgreed ? colors.accent : colors.textSecondary,
+              fontSize: typography.base,
               fontWeight: typography.semibold,
               fontFamily: typography.fontFamily,
               transition: transitions.normal,
             }}
           >
-            <span>게임 규칙 안내</span>
+            <span>📜 악단 입단 서약서 {pledgeAgreed ? '✓' : ''}</span>
             <span style={{ fontSize: typography.sm, color: colors.textMuted }}>
-              {showRules ? '▲' : '▼'}
+              {showPledge ? '▲' : '▼'}
             </span>
           </button>
 
           <AnimatePresence>
-            {showRules && (
+            {showPledge && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
@@ -237,33 +254,57 @@ export function Landing() {
                   border: `1px solid ${colors.borderLight}`,
                   borderRadius: radius.md,
                 }}>
+                  <div style={{
+                    fontSize: typography.sm, color: colors.textSecondary,
+                    lineHeight: 1.8, marginBottom: spacing.lg,
+                    fontFamily: typography.fontFamily,
+                  }}>
+                    나는 오늘, <span style={{ color: colors.accent, fontWeight: typography.semibold }}>신의 악단</span>의 일원이 되어
+                    잃어버린 악보를 되찾기 위한 신성한 임무에 참여합니다.
+                  </div>
+
+                  <div style={{ borderTop: `1px solid ${colors.borderLight}`, margin: `${spacing.lg}px 0` }} />
+
                   {[
-                    { icon: '📍', title: '장소 찾기', desc: '힌트를 읽고 3개의 장소를 순서대로 찾아가세요. 각 단계마다 2곳 중 정답 장소를 골라야 합니다.' },
-                    { icon: '⏱', title: '제한 시간', desc: '30분 안에 3개의 장소를 모두 찾으면 악보 조각을 획득합니다.' },
-                    { icon: '👥', title: '팀 협동', desc: '팀원 3명 이상이 정답 장소 근처(50m)에 모여야 해금됩니다. 함께 움직이세요!' },
-                  ].map((rule, i) => (
+                    { text: <>나는 주어진 임무에 <span style={{ color: colors.accent }}>최선을 다해 참여</span>할 것을 서약합니다.</> },
+                    { text: <>탐색 중 발견한 물건이나 시설물을 <span style={{ color: colors.warning }}>절대 만지거나 훼손하지 않을 것</span>을 서약합니다.</> },
+                    { text: <>이 임무에서 보고 들은 모든 것을 <span style={{ color: colors.warning }}>외부에 발설하지 않을 것</span>을 서약합니다. 악보의 비밀은 악단 안에서만 지켜져야 합니다.</> },
+                    { text: <>동료 악단원들과 <span style={{ color: colors.accent }}>협력하여</span> 임무를 완수할 것을 서약합니다.</> },
+                  ].map((item, i) => (
                     <div key={i} style={{
-                      display: 'flex', gap: spacing.md, alignItems: 'flex-start',
-                      marginBottom: i < 2 ? spacing.lg : 0,
+                      display: 'flex', gap: spacing.md, marginBottom: spacing.md,
+                      alignItems: 'flex-start',
                     }}>
-                      <span style={{ fontSize: 18, marginTop: 2 }}>{rule.icon}</span>
-                      <div>
-                        <div style={{
-                          fontSize: typography.sm, fontWeight: typography.semibold,
-                          color: colors.textPrimary, marginBottom: spacing.xs,
-                          fontFamily: typography.fontFamily,
-                        }}>
-                          {rule.title}
-                        </div>
-                        <div style={{
-                          fontSize: typography.sm, color: colors.textSecondary,
-                          lineHeight: 1.6, fontFamily: typography.fontFamily,
-                        }}>
-                          {rule.desc}
-                        </div>
-                      </div>
+                      <span style={{ color: colors.accent, fontWeight: typography.bold, fontSize: typography.base, minWidth: 20 }}>{i + 1}</span>
+                      <span style={{ fontSize: typography.sm, color: colors.textSecondary, lineHeight: 1.6, fontFamily: typography.fontFamily }}>{item.text}</span>
                     </div>
                   ))}
+
+                  {/* Agree checkbox inside pledge box */}
+                  <div style={{ borderTop: `1px solid ${colors.borderLight}`, margin: `${spacing.lg}px 0` }} />
+                  <div
+                    onClick={() => setPledgeAgreed(!pledgeAgreed)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: spacing.sm,
+                      cursor: 'pointer', padding: `${spacing.sm}px 0`,
+                    }}
+                  >
+                    <div style={{
+                      width: 20, height: 20, borderRadius: radius.sm,
+                      border: `2px solid ${pledgeAgreed ? colors.accent : colors.textMuted}`,
+                      background: pledgeAgreed ? colors.accent : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      transition: transitions.normal, flexShrink: 0,
+                    }}>
+                      {pledgeAgreed && <span style={{ color: colors.bg, fontSize: typography.sm, fontWeight: typography.bold }}>✓</span>}
+                    </div>
+                    <span style={{
+                      fontSize: typography.sm, fontFamily: typography.fontFamily,
+                      color: pledgeAgreed ? colors.accent : colors.textSecondary,
+                    }}>
+                      위 서약에 동의합니다
+                    </span>
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -381,7 +422,7 @@ export function Landing() {
             boxShadow: canSubmit ? shadows.accent : 'none',
           }}
         >
-          {canSubmit ? '입장하기' : '정보를 입력하세요'}
+          {canSubmit ? '서약 완료 · 입장하기' : !pledgeAgreed && teamInput && passwordInput && nameInput.trim() ? '서약에 동의해주세요' : '정보를 입력하세요'}
         </button>
 
         {/* Footer */}

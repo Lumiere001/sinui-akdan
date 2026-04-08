@@ -112,13 +112,6 @@ export function Game() {
   useEffect(() => {
     if (!socket || !teamId) return
 
-    // Pledge check - redirect if no pledge
-    socket.on('pledge:status', (data: { playerId: string; hasPledge: boolean }) => {
-      if (data.playerId === playerId && !data.hasPledge) {
-        navigate('/pledge')
-      }
-    })
-
     // Game state
     socket.on('game:state', (state) => {
       const team = state.teams[teamId]
@@ -307,7 +300,6 @@ export function Game() {
     })
 
     return () => {
-      socket.off('pledge:status')
       socket.off('game:state')
       socket.off('team:stageUpdate')
       socket.off('team:stepComplete')
@@ -500,12 +492,41 @@ export function Game() {
           )}
 
           {stage === 'stage2_ready' && (
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 48, marginBottom: spacing.xl }}>🗺️</div>
-              <h2 style={{ fontSize: typography.lg, fontWeight: typography.bold, color: colors.stage2, marginBottom: spacing.md }}>Stage 2 준비</h2>
-              <p style={{ fontSize: typography.base, color: colors.textMuted }}>곧 시작됩니다. 준비해주세요!</p>
+            <div style={{ textAlign: 'center', width: '100%', maxWidth: 340 }}>
+              <div style={{ fontSize: 48, marginBottom: spacing.lg }}>🗺️</div>
+              <h2 style={{ fontSize: typography.lg, fontWeight: typography.bold, color: colors.stage2, marginBottom: spacing.sm }}>Stage 2 준비</h2>
+              <p style={{ fontSize: typography.base, color: colors.textMuted, marginBottom: spacing.xl }}>곧 시작됩니다. 규칙을 확인하세요!</p>
+
+              {/* Game Rules */}
               <div style={{
-                marginTop: spacing.xl, fontSize: typography.timer, fontWeight: typography.bold,
+                background: colors.surface, border: `1px solid ${colors.borderLight}`,
+                borderRadius: radius.lg, padding: spacing.lg, textAlign: 'left',
+                marginBottom: spacing.xl,
+              }}>
+                {[
+                  { icon: '📍', title: '장소 찾기', desc: '힌트를 읽고 3개의 장소를 순서대로 찾아가세요. 각 단계마다 2곳 중 정답 장소를 골라야 합니다.' },
+                  { icon: '⏱', title: '제한 시간', desc: '30분 안에 3개의 장소를 모두 찾으면 악보 조각을 획득합니다.' },
+                  { icon: '👥', title: '팀 협동', desc: '팀원 3명 이상이 정답 장소 근처(50m)에 모여야 해금됩니다. 함께 움직이세요!' },
+                ].map((rule, i) => (
+                  <div key={i} style={{
+                    display: 'flex', gap: spacing.md, alignItems: 'flex-start',
+                    marginBottom: i < 2 ? spacing.lg : 0,
+                  }}>
+                    <span style={{ fontSize: 18, marginTop: 2 }}>{rule.icon}</span>
+                    <div>
+                      <div style={{ fontSize: typography.sm, fontWeight: typography.semibold, color: colors.textPrimary, marginBottom: spacing.xs }}>
+                        {rule.title}
+                      </div>
+                      <div style={{ fontSize: typography.sm, color: colors.textSecondary, lineHeight: 1.6 }}>
+                        {rule.desc}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{
+                fontSize: typography.timer, fontWeight: typography.bold,
                 color: colors.stage2Bg, fontVariantNumeric: 'tabular-nums',
                 fontFamily: typography.monoFamily,
               }}>

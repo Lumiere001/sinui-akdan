@@ -692,13 +692,13 @@ io.on('connection', (socket) => {
 
     if (connection) {
       const { teamId, playerId } = connection;
-      gameStateManager.removePlayerFromTeam(teamId, playerId);
+      // Do NOT remove player from team — keep their last known position
+      // so admin can still see where they were and they restore instantly on reconnect
       teamConnections.delete(socket.id);
 
-      console.log(`[Team ${teamId}] Player ${playerId} disconnected`);
+      console.log(`[Team ${teamId}] Player ${playerId} disconnected (position preserved)`);
 
-      // Broadcast updated positions
-      io.to(`team:${teamId}`).emit('team:positions', gameStateManager.getTeamMembers(teamId));
+      // Broadcast updated state (member still exists with last position)
       broadcastGameState();
     } else {
       console.log(`[Socket] Client disconnected: ${socket.id}`);

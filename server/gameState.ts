@@ -337,7 +337,7 @@ class GameStateManager {
    */
   resetGame(): void {
     const teams: Record<number, TeamState> = {};
-    for (let i = 1; i <= 10; i++) {
+    for (let i = 1; i <= 11; i++) {
       teams[i] = {
         teamId: i,
         members: {},

@@ -14,8 +14,8 @@ export function Landing() {
 
   const handleLogin = () => {
     const teamNum = parseInt(teamInput, 10)
-    if (!teamNum || teamNum < 1 || teamNum > 10) {
-      setError('팀 번호를 확인해주세요 (1-10)')
+    if (!teamNum || teamNum < 1 || teamNum > 11) {
+      setError('팀 번호를 확인해주세요 (1-11)')
       return
     }
     if (!nameInput.trim()) {

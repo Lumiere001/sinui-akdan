@@ -22,6 +22,7 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin2024';
 const TEAM_PASSWORDS: Record<number, string> = {
   1: '1111', 2: '2222', 3: '3333', 4: '4444', 5: '5555',
   6: '6666', 7: '7777', 8: '8888', 9: '9999', 10: '0000',
+  11: '1234',  // Test team
 };
 
 // ========== Express App Setup ==========
@@ -77,7 +78,7 @@ function broadcastGameState(): void {
   const state = gameStateManager.getState();
 
   // Send full state to team players
-  for (let t = 1; t <= 10; t++) {
+  for (let t = 1; t <= 11; t++) {
     io.to(`team:${t}`).emit('game:state', state);
   }
 
@@ -128,7 +129,7 @@ io.on('connection', (socket) => {
       }
 
       // Validate team ID (1-10)
-      if (teamId < 1 || teamId > 10) {
+      if (teamId < 1 || teamId > 11) {
         socket.emit('error', { message: 'Invalid team ID' });
         return;
       }
@@ -271,7 +272,7 @@ io.on('connection', (socket) => {
       // Broadcast to admin (online members only)
       const onlineIds = getOnlinePlayerIds();
       const allTeamsData: Record<number, PlayerPosition[]> = {};
-      for (let t = 1; t <= 10; t++) {
+      for (let t = 1; t <= 11; t++) {
         allTeamsData[t] = gameStateManager.getTeamMembers(t).filter(m => onlineIds.has(m.playerId));
       }
       io.to('admin').emit('admin:allPositions', allTeamsData);
@@ -596,13 +597,13 @@ io.on('connection', (socket) => {
 
       // Send all positions
       const allTeamsData: Record<number, PlayerPosition[]> = {};
-      for (let t = 1; t <= 10; t++) {
+      for (let t = 1; t <= 11; t++) {
         allTeamsData[t] = gameStateManager.getTeamMembers(t);
       }
       socket.emit('admin:allPositions', allTeamsData);
 
       // Send all chat histories
-      for (let t = 1; t <= 10; t++) {
+      for (let t = 1; t <= 11; t++) {
         const chatHistory = gameStateManager.getChatHistory(t);
         if (chatHistory.length > 0) {
           socket.emit('chat:history', chatHistory);
@@ -623,7 +624,7 @@ io.on('connection', (socket) => {
    */
   socket.on('admin:startTimer', (teamId: number) => {
     try {
-      if (teamId < 1 || teamId > 10) {
+      if (teamId < 1 || teamId > 11) {
         socket.emit('error', { message: 'Invalid team ID' });
         return;
       }
@@ -668,7 +669,7 @@ io.on('connection', (socket) => {
    */
   socket.on('admin:stopTimer', (teamId: number) => {
     try {
-      if (teamId < 1 || teamId > 10) {
+      if (teamId < 1 || teamId > 11) {
         socket.emit('error', { message: 'Invalid team ID' });
         return;
       }

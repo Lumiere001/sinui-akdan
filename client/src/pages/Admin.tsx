@@ -14,7 +14,7 @@ declare global {
 }
 
 // ========== Admin Map Component ==========
-function AdminMap({ gameState, round }: { gameState: GameState | null; round: 1 | 2 }) {
+function AdminMap({ gameState, round }: { gameState: GameState | null; round: 1 | 2 | 3 }) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
   const markersRef = useRef<any[]>([])
@@ -64,7 +64,7 @@ function AdminMap({ gameState, round }: { gameState: GameState | null; round: 1 
     markersRef.current.forEach(m => m.setMap(null))
     markersRef.current = []
 
-    const teamIds = round === 1 ? [1, 2, 3, 4, 5] : [6, 7, 8, 9, 10]
+    const teamIds = round === 1 ? [1, 2, 3, 4, 5] : round === 2 ? [6, 7, 8, 9, 10] : [11]
 
     teamIds.forEach(tId => {
       const team = gameState.teams[tId]
@@ -135,7 +135,7 @@ export function Admin() {
   const [chatMessages, setChatMessages] = useState<Record<number, ChatMessage[]>>({})
   const [chatInput, setChatInput] = useState('')
   const [selectedChatTeam, setSelectedChatTeam] = useState<number>(1)
-  const [activeRound, setActiveRound] = useState<1 | 2>(1)
+  const [activeRound, setActiveRound] = useState<1 | 2 | 3>(1)
   const [, setTick] = useState(0)
   const chatEndRef = useRef<HTMLDivElement>(null)
   const chatInitialized = useRef(false)
@@ -303,7 +303,7 @@ export function Admin() {
 
   const totalPledges = gameState ? Object.keys(gameState.pledges).length : 0
 
-  const roundTeams = activeRound === 1 ? [1, 2, 3, 4, 5] : [6, 7, 8, 9, 10]
+  const roundTeams = activeRound === 1 ? [1, 2, 3, 4, 5] : activeRound === 2 ? [6, 7, 8, 9, 10] : [11]
   const selectedTeamMsgs = chatMessages[selectedChatTeam] || []
 
   const totalUnread = Object.values(unreadCounts).reduce((s, c) => s + c, 0)
@@ -342,7 +342,7 @@ export function Admin() {
 
       {/* ===== Round Tabs ===== */}
       <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        {([1, 2] as const).map(r => (
+        {([1, 2, 3] as const).map(r => (
           <button
             key={r}
             onClick={() => setActiveRound(r)}
@@ -356,7 +356,7 @@ export function Admin() {
               transition: 'all 0.2s',
             }}
           >
-            {r === 1 ? '🅰 라운드 1 (팀 1-5)' : '🅱 라운드 2 (팀 6-10)'}
+            {r === 1 ? '🅰 라운드 1 (팀 1-5)' : r === 2 ? '🅱 라운드 2 (팀 6-10)' : '🧪 테스트 (팀 11)'}
           </button>
         ))}
       </div>

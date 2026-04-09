@@ -8,6 +8,7 @@ import {
   getLocationById,
   calculateDistance,
   getDirectionBearing,
+  getTeamName,
 } from '../data/gameData'
 import type { Location, PlayerPosition, ChatMessage, TeamStage } from '../../../shared/types'
 import { colors, typography, spacing, radius, shadows, transitions } from '../theme'
@@ -423,7 +424,7 @@ export function Game() {
         <div style={{ position: 'sticky', top: 0, zIndex: 50, background: colors.bg, borderBottom: `1px solid ${colors.borderLight}`, padding: `${spacing.md}px ${spacing.lg}px` }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-              <span style={{ fontSize: typography.sm, color: colors.accent }}>팀 {teamId}</span>
+              <span style={{ fontSize: typography.sm, color: colors.accent }}>{getTeamName(teamId)}</span>
               <span style={{
                 width: 6, height: 6, borderRadius: radius.full,
                 background: isConnected ? colors.accent : colors.error,
@@ -641,7 +642,7 @@ export function Game() {
       <div style={{ position: 'sticky', top: 0, zIndex: 50, background: colors.bg, borderBottom: `1px solid ${colors.borderLight}`, padding: `${spacing.md}px ${spacing.lg}px` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-            <span style={{ fontSize: typography.sm, color: colors.accent }}>팀 {teamId}</span>
+            <span style={{ fontSize: typography.sm, color: colors.accent }}>{getTeamName(teamId)}</span>
             <span style={{
               width: 6, height: 6, borderRadius: radius.full,
               background: isConnected ? colors.accent : colors.error,
@@ -914,15 +915,7 @@ export function Game() {
             })}
           </div>
 
-          {showStepComplete.photo && (
-            <div style={{
-              width: '100%', maxWidth: 280, aspectRatio: '4/3', borderRadius: radius.lg,
-              overflow: 'hidden', marginBottom: spacing.xl,
-              border: `1px solid ${colors.accentBorder}`,
-            }}>
-              <img src={`/${showStepComplete.photo}`} alt="악보 조각" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            </div>
-          )}
+          {/* Step photo removed — only final 악보 shown on game completion */}
           <button
             onClick={() => setShowStepComplete(null)}
             style={{
@@ -949,17 +942,7 @@ export function Game() {
           <div style={{ fontSize: 48, marginBottom: spacing.lg }}>❌</div>
           <h2 style={{ fontSize: typography.xl, fontWeight: typography.bold, color: colors.error, marginBottom: spacing.md }}>이곳이 아닙니다</h2>
           <p style={{ fontSize: typography.sm, color: colors.textMuted, marginBottom: spacing.xl }}>다른 장소를 찾아보세요</p>
-          {showWrong.photo && (
-            <div style={{
-              width: '100%', maxWidth: 280, aspectRatio: '4/3', borderRadius: radius.lg,
-              overflow: 'hidden', marginBottom: spacing.xl,
-              border: `1px solid ${colors.errorBorder}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: colors.borderLight,
-            }}>
-              <img src={`/${showWrong.photo}`} alt="오답" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            </div>
-          )}
+          {/* Wrong photo removed — only final 악보 shown on game completion */}
           <button
             onClick={() => setShowWrong(null)}
             style={{

@@ -13,10 +13,41 @@ export const LOCATIONS: Location[] = [
   { id: 'test_B', name: '테스트 장소 B', lat: 35.176932, lng: 126.907928, unlockRadius: 40, approachRadius: 100 },
 ]
 
-// ========== 팀 비밀번호 ==========
+// ========== 팀 이름 (오케스트라 악기) ==========
+export const TEAM_NAMES: Record<number, string> = {
+  1: '바이올린',
+  2: '비올라',
+  3: '첼로',
+  4: '더블베이스',
+  5: '플루트',
+  6: '오보에',
+  7: '클라리넷',
+  8: '호른',
+  9: '트럼펫',
+  10: '팀파니',
+}
+
+// ========== 팀 비밀번호 (4자리 무작위) ==========
 export const TEAM_PASSWORDS: Record<number, string> = {
-  1: '1111', 2: '2222', 3: '3333', 4: '4444', 5: '5555',
-  6: '6666', 7: '7777', 8: '8888', 9: '9999', 10: '0000',
+  1: '3847',
+  2: '5291',
+  3: '7463',
+  4: '1926',
+  5: '8052',
+  6: '4739',
+  7: '6185',
+  8: '2574',
+  9: '9318',
+  10: '5607',
+}
+
+export function getTeamName(teamId: number): string {
+  return TEAM_NAMES[teamId] || `팀 ${teamId}`
+}
+
+export function getTeamLabel(teamId: number): string {
+  const name = TEAM_NAMES[teamId]
+  return name ? `${teamId}팀 · ${name}` : `팀 ${teamId}`
 }
 
 // ========== 헬퍼 함수 ==========

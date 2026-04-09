@@ -19,10 +19,18 @@ const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 const ALLOWED_ORIGINS = [CLIENT_URL, 'https://sinui-akdan.vercel.app', 'http://localhost:5173'];
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin2024';
 
-// Team passwords (server-side validation)
+// Team passwords (server-side validation) — keep in sync with client/src/data/gameData.ts
 const TEAM_PASSWORDS: Record<number, string> = {
-  1: '1111', 2: '2222', 3: '3333', 4: '4444', 5: '5555',
-  6: '6666', 7: '7777', 8: '8888', 9: '9999', 10: '0000',
+  1: '3847',
+  2: '5291',
+  3: '7463',
+  4: '1926',
+  5: '8052',
+  6: '4739',
+  7: '6185',
+  8: '2574',
+  9: '9318',
+  10: '5607',
 };
 
 // ========== Express App Setup ==========

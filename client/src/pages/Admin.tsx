@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useSocket } from '../hooks/useSocket'
 import type { GameState, ChatMessage, PlayerPosition, TeamStage } from '../../../shared/types'
 import { colors, typography, spacing, radius, transitions } from '../theme'
+import { getTeamName, getTeamLabel } from '../data/gameData'
 
 const ADMIN_PASSWORD = 'admin2024'
 
@@ -246,7 +247,7 @@ export function Admin() {
     if (confirm('정말로 전체 게임을 초기화하시겠습니까?')) socket?.emit('admin:resetGame')
   }
   function resetTeam(teamId: number) {
-    if (confirm(`팀 ${teamId}을(를) 재시작하시겠습니까?\n(진행상태, 서약, 타이머 모두 초기화)`)) {
+    if (confirm(`${getTeamLabel(teamId)}을(를) 재시작하시겠습니까?\n(진행상태, 서약, 타이머 모두 초기화)`)) {
       socket?.emit('admin:resetTeam', teamId)
     }
   }
@@ -506,7 +507,7 @@ export function Admin() {
                     }}>{tId}</span>
                     <div>
                       <div style={{ fontSize: typography.md, fontWeight: typography.semibold, display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-                        팀 {tId}
+                        {getTeamLabel(tId)}
                         {teamUnread > 0 && (
                           <span style={{
                             background: colors.info, color: colors.textPrimary, borderRadius: radius.md, padding: '1px 7px',
@@ -846,7 +847,7 @@ export function Admin() {
           {/* Chat input */}
           <div style={{ display: 'flex', gap: spacing.sm }}>
             <input
-              type="text" placeholder={`팀 ${selectedChatTeam}에게 메시지...`}
+              type="text" placeholder={`${getTeamName(selectedChatTeam)}에게 메시지...`}
               value={chatInput}
               onChange={e => setChatInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) sendChat() }}

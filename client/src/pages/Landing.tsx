@@ -6,7 +6,13 @@ import { useSocket } from '../hooks/useSocket'
 import { colors, typography, spacing, radius, shadows, transitions } from '../theme'
 
 /**
- * 카카오톡 인앱 브라우저 감지 및 외부 브라우저로 리다이렉트
+ * 카카오톡 인앱 브라우저 감지
+ *
+ * - Android: intent:// 스킴으로 Chrome 자동 실행 (사용자 탭으로 이동)
+ * - iOS: 자동 리다이렉트 불가능(Safari로 강제 이동할 방법이 없음) →
+ *        안내 화면만 표시하고, 사용자가 카카오톡 메뉴(⋯)에서 직접 Safari로 열도록 유도.
+ *        과거에 window.location.href = currentUrl 으로 리다이렉트를 시도했으나
+ *        iOS 카카오 인앱에서는 같은 URL로 재로드 → useEffect 재실행 → 무한 루프 발생.
  */
 function useKakaoInAppRedirect() {
   const [isKakao, setIsKakao] = useState(false)
@@ -17,20 +23,13 @@ function useKakaoInAppRedirect() {
 
     setIsKakao(true)
 
-    const currentUrl = window.location.href
-
-    // Android: intent:// 스킴으로 Chrome 열기
+    // Android만 자동 리다이렉트. iOS는 안내 화면만 표시.
     if (/android/i.test(ua)) {
+      const currentUrl = window.location.href
       window.location.href =
         'intent://' +
         currentUrl.replace(/^https?:\/\//, '') +
         '#Intent;scheme=https;package=com.android.chrome;end'
-      return
-    }
-
-    // iOS: Safari로 열기 위해 카카오 인앱 브라우저 탈출
-    if (/iphone|ipad|ipod/i.test(ua)) {
-      window.location.href = currentUrl
     }
   }, [])
 
@@ -91,17 +90,25 @@ export function Landing() {
   // 카카오톡 인앱 브라우저일 경우 외부 브라우저 안내 화면 표시
   if (isKakaoInApp) {
     const currentUrl = window.location.href
-    const handleOpenExternal = () => {
-      const ua = navigator.userAgent || ''
-      if (/android/i.test(ua)) {
-        window.location.href =
-          'intent://' +
-          currentUrl.replace(/^https?:\/\//, '') +
-          '#Intent;scheme=https;package=com.android.chrome;end'
+    const ua = navigator.userAgent || ''
+    const isIOS = /iphone|ipad|ipod/i.test(ua)
+    const isAndroid = /android/i.test(ua)
+
+    const handleCopyUrl = () => {
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(currentUrl)
+          .then(() => alert('주소가 복사되었습니다.\nSafari를 열고 주소창에 붙여넣기 해주세요.'))
+          .catch(() => alert('주소 복사에 실패했습니다.\n주소를 길게 눌러 직접 복사해주세요.'))
       } else {
-        navigator.clipboard?.writeText(currentUrl)
-        alert('주소가 복사되었습니다.\nSafari를 열고 주소창에 붙여넣기 해주세요.')
+        alert('주소 복사 기능을 사용할 수 없습니다.\n주소를 길게 눌러 직접 복사해주세요.')
       }
+    }
+
+    const handleOpenAndroidChrome = () => {
+      window.location.href =
+        'intent://' +
+        currentUrl.replace(/^https?:\/\//, '') +
+        '#Intent;scheme=https;package=com.android.chrome;end'
     }
 
     return (
@@ -120,23 +127,79 @@ export function Landing() {
           <p style={{ color: colors.textSecondary, fontSize: typography.base, lineHeight: 1.7, marginBottom: spacing.xxl }}>
             카카오톡 브라우저에서는 위치 서비스 등<br />
             일부 기능이 제한됩니다.<br />
-            <span style={{ color: colors.accent }}>Chrome</span> 또는 <span style={{ color: colors.accent }}>Safari</span>에서 열어주세요.
+            {isIOS ? (
+              <><span style={{ color: colors.accent }}>Safari</span>에서 열어주세요.</>
+            ) : (
+              <><span style={{ color: colors.accent }}>Chrome</span> 또는 <span style={{ color: colors.accent }}>Safari</span>에서 열어주세요.</>
+            )}
           </p>
 
+          {/* iOS: 수동 안내 (자동 리다이렉트 불가 — 과거 루프 버그 회피) */}
+          {isIOS && (
+            <div style={{
+              padding: `${spacing.lg}px`,
+              borderRadius: radius.md,
+              background: colors.surface,
+              border: `1px solid ${colors.accentBorder}`,
+              marginBottom: spacing.lg,
+              textAlign: 'left',
+            }}>
+              <div style={{
+                fontSize: typography.sm, color: colors.accent,
+                fontWeight: typography.bold, marginBottom: spacing.sm,
+                textAlign: 'center',
+              }}>
+                Safari로 여는 방법
+              </div>
+              <div style={{ fontSize: typography.sm, color: colors.textSecondary, lineHeight: 1.8 }}>
+                <div style={{ marginBottom: spacing.xs }}>
+                  <span style={{ color: colors.accent, fontWeight: typography.bold }}>1.</span> 화면 오른쪽 아래 <span style={{ color: colors.accent }}>⋯</span> (더보기) 버튼 탭
+                </div>
+                <div style={{ marginBottom: spacing.xs }}>
+                  <span style={{ color: colors.accent, fontWeight: typography.bold }}>2.</span> <span style={{ color: colors.accent }}>'Safari로 열기'</span> 선택
+                </div>
+                <div>
+                  <span style={{ color: colors.accent, fontWeight: typography.bold }}>3.</span> 또는 아래 주소를 복사해서 Safari에 붙여넣기
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Android: Chrome 직접 열기 버튼 */}
+          {isAndroid && (
+            <button
+              onClick={handleOpenAndroidChrome}
+              style={{
+                width: '100%', padding: spacing.lg,
+                borderRadius: radius.pill,
+                background: colors.accent, color: colors.bg,
+                fontSize: typography.md, fontWeight: typography.bold,
+                border: 'none', cursor: 'pointer', marginBottom: spacing.md,
+                fontFamily: typography.fontFamily,
+                letterSpacing: typography.wide,
+                textTransform: 'uppercase' as const,
+              }}
+            >
+              Chrome으로 열기
+            </button>
+          )}
+
+          {/* 주소 복사 버튼 (iOS/Android 공통) */}
           <button
-            onClick={handleOpenExternal}
+            onClick={handleCopyUrl}
             style={{
               width: '100%', padding: spacing.lg,
               borderRadius: radius.pill,
-              background: colors.accent, color: colors.bg,
+              background: isIOS ? colors.accent : colors.surfaceLight,
+              color: isIOS ? colors.bg : colors.textPrimary,
               fontSize: typography.md, fontWeight: typography.bold,
-              border: 'none', cursor: 'pointer', marginBottom: spacing.md,
+              border: isIOS ? 'none' : `1px solid ${colors.border}`,
+              cursor: 'pointer', marginBottom: spacing.md,
               fontFamily: typography.fontFamily,
               letterSpacing: typography.wide,
-              textTransform: 'uppercase' as const,
             }}
           >
-            외부 브라우저로 열기
+            주소 복사하기
           </button>
 
           <div style={{
@@ -146,12 +209,13 @@ export function Landing() {
             border: `1px solid ${colors.borderLight}`,
           }}>
             <div style={{ fontSize: typography.xs, color: colors.textMuted, marginBottom: spacing.xs }}>
-              또는 직접 주소를 복사해서 브라우저에 붙여넣기
+              주소를 길게 눌러 복사할 수도 있어요
             </div>
             <div style={{
               fontSize: typography.sm, color: colors.textSecondary,
               fontFamily: typography.monoFamily,
               wordBreak: 'break-all', lineHeight: 1.5,
+              userSelect: 'all' as const,
             }}>
               {currentUrl}
             </div>

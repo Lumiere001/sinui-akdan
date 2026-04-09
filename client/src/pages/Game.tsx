@@ -985,15 +985,7 @@ export function Game() {
             ))}
           </div>
 
-          {showComplete.photo && (
-            <div style={{
-              width: '100%', maxWidth: 280, aspectRatio: '4/3', borderRadius: radius.lg,
-              overflow: 'hidden', marginBottom: spacing.xl,
-              border: `1px solid ${colors.warningBorder}`,
-            }}>
-              <img src={`/${showComplete.photo}`} alt="완성된 악보" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            </div>
-          )}
+          {/* Final complete photo removed — no photos in any completion overlay */}
 
           {/* CCC Center notice */}
           <div style={{

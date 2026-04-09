@@ -659,7 +659,7 @@ io.on('connection', (socket) => {
       // Broadcast timer start
       io.to(`team:${teamId}`).emit('team:timerStart', {
         teamId,
-        duration: 30 * 60 * 1000,
+        duration: 25 * 60 * 1000,
       });
 
       console.log(`[Admin] Started timer for team ${teamId}`);

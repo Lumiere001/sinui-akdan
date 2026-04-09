@@ -12,9 +12,9 @@ Complete server-side rewrite for V2 of the GPS-based treasure hunt app with majo
 - Upon correct location, advance to next step hint
 - After step 3 correct, team is marked complete
 
-### 2. Per-Team Individual 30-Minute Timers
+### 2. Per-Team Individual 25-Minute Timers
 - Each team has individual timer (started via admin command)
-- 30-minute duration (1800000ms)
+- 25-minute duration (1500000ms)
 - Automatic expiration checked every 1 second
 - Timer stops when team completes or manually stopped
 - Can manage individual team timers independently
@@ -107,7 +107,7 @@ Complete server-side rewrite for V2 of the GPS-based treasure hunt app with majo
 2. **Wait**: Team waits for admin to start timer
 3. **Start**: Admin starts timer for team
    - Team receives Step 1 hint + location options
-   - 30-minute timer begins
+   - 25-minute timer begins
 4. **Step Loop** (repeat for steps 1-3):
    - Team navigates to correct location
    - 3+ members must be within 50m
@@ -121,7 +121,7 @@ Complete server-side rewrite for V2 of the GPS-based treasure hunt app with majo
 ## Configuration
 
 ### Timer Settings
-- Duration: 1800000ms (30 minutes)
+- Duration: 1500000ms (25 minutes)
 - Check interval: 1000ms (1 second)
 - Debounce save: 1000ms
 
@@ -151,7 +151,7 @@ Complete server-side rewrite for V2 of the GPS-based treasure hunt app with majo
       "completedSteps": [1],
       "isComplete": false,
       "timerStartTime": 1712590800000,
-      "timerDuration": 1800000,
+      "timerDuration": 1500000,
       "isTimerActive": true,
       "isTimerExpired": false,
       "representative": "playerId"

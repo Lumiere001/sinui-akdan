@@ -3,7 +3,7 @@ import type { GameState, TeamState, TeamStage, PlayerPosition, PledgeRecord, Cha
 
 /**
  * Game state management for V2
- * - Per-team timers (30 minutes each)
+ * - Per-team timers (25 minutes each)
  * - Multi-step routes (3 steps per team)
  * - Pledge system
  * - Chat system
@@ -139,7 +139,7 @@ class GameStateManager {
     this.saveState();
   }
 
-  // ========== Stage 2 Timer Management (30 minutes) ==========
+  // ========== Stage 2 Timer Management (25 minutes) ==========
 
   /**
    * Start individual team timer
@@ -157,7 +157,7 @@ class GameStateManager {
     team.stage1TimerRemainingAtPause = null;
 
     team.timerStartTime = Date.now();
-    team.timerDuration = 30 * 60 * 1000;
+    team.timerDuration = 25 * 60 * 1000;
     team.isTimerActive = true;
     team.isTimerExpired = false;
     team.isTimerPaused = false;
@@ -530,7 +530,7 @@ class GameStateManager {
         completedSteps: [],
         isComplete: false,
         timerStartTime: null,
-        timerDuration: 30 * 60 * 1000,
+        timerDuration: 25 * 60 * 1000,
         isTimerActive: false,
         isTimerExpired: false,
         isTimerPaused: false,
@@ -570,7 +570,7 @@ class GameStateManager {
     team.completedSteps = [];
     team.isComplete = false;
     team.timerStartTime = null;
-    team.timerDuration = 30 * 60 * 1000;
+    team.timerDuration = 25 * 60 * 1000;
     team.isTimerActive = false;
     team.isTimerExpired = false;
     team.isTimerPaused = false;

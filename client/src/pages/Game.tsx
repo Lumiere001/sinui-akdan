@@ -61,8 +61,8 @@ export function Game() {
   const [isTimerPaused, setIsTimerPaused] = useState(false)
   const [isTimerExpired, setIsTimerExpired] = useState(false)
   const [timerStartTime, setTimerStartTime] = useState<number | null>(null)
-  const [timerDuration, setTimerDuration] = useState(30 * 60 * 1000)
-  const [timerDisplay, setTimerDisplay] = useState('30:00')
+  const [timerDuration, setTimerDuration] = useState(25 * 60 * 1000)
+  const [timerDisplay, setTimerDisplay] = useState('25:00')
   const [teamMembers, setTeamMembers] = useState<PlayerPosition[]>([])
   const [memberCounts, setMemberCounts] = useState<Record<string, { count: number; needed: number }>>({})
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -340,7 +340,7 @@ export function Game() {
     // When paused, timer display is already set by the timerPaused handler
     if (isTimerPaused) return
     if (!isTimerActive || !timerStartTime) {
-      if (!isTimerActive && !isTimerExpired && !isTimerPaused) setTimerDisplay('30:00')
+      if (!isTimerActive && !isTimerExpired && !isTimerPaused) setTimerDisplay('25:00')
       return
     }
     const interval = setInterval(() => {
@@ -505,7 +505,7 @@ export function Game() {
               }}>
                 {[
                   { icon: '📍', title: '장소 찾기', desc: '힌트를 읽고 3개의 장소를 순서대로 찾아가세요. 각 단계마다 2곳 중 정답 장소를 골라야 합니다.' },
-                  { icon: '⏱', title: '제한 시간', desc: '30분 안에 3개의 장소를 모두 찾으면 악보 조각을 획득합니다.' },
+                  { icon: '⏱', title: '제한 시간', desc: '25분 안에 3개의 장소를 모두 찾으면 악보 조각을 획득합니다.' },
                   { icon: '👥', title: '팀 협동', desc: '팀원 3명 이상이 정답 장소 근처(50m)에 모여야 해금됩니다. 함께 움직이세요!' },
                 ].map((rule, i) => (
                   <div key={i} style={{
@@ -530,7 +530,7 @@ export function Game() {
                 color: colors.stage2Bg, fontVariantNumeric: 'tabular-nums',
                 fontFamily: typography.monoFamily,
               }}>
-                30:00
+                25:00
               </div>
             </div>
           )}
@@ -696,7 +696,7 @@ export function Game() {
         }}>
           <div style={{ fontSize: 48, marginBottom: spacing.lg }}>⏰</div>
           <h2 style={{ fontSize: typography.xl, fontWeight: typography.bold, color: colors.error, marginBottom: spacing.md }}>시간 초과</h2>
-          <p style={{ fontSize: typography.sm, color: colors.textMuted, marginBottom: spacing.xl }}>30분이 경과했습니다</p>
+          <p style={{ fontSize: typography.sm, color: colors.textMuted, marginBottom: spacing.xl }}>25분이 경과했습니다</p>
 
           {/* Progress bar */}
           <div style={{ width: '100%', maxWidth: 300, marginBottom: spacing.xl }}>

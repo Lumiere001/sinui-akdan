@@ -24,7 +24,7 @@ function createInitialGameState(): GameState {
       completedSteps: [],
       isComplete: false,
       timerStartTime: null,
-      timerDuration: 30 * 60 * 1000,
+      timerDuration: 25 * 60 * 1000,
       isTimerActive: false,
       isTimerExpired: false,
       isTimerPaused: false,

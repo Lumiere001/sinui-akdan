@@ -273,7 +273,7 @@ export function Admin() {
     }
     if (!team.timerStartTime || !team.isTimerActive) {
       if (team.isTimerExpired) return '00:00'
-      return '30:00'
+      return '25:00'
     }
     const elapsed = Date.now() - team.timerStartTime
     const remaining = Math.max(0, team.timerDuration - elapsed)

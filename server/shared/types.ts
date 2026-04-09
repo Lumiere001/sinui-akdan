@@ -56,7 +56,7 @@ export interface TeamState {
   completedSteps: number[];               // Array of completed step numbers
   isComplete: boolean;
   timerStartTime: number | null;          // When this team's timer started
-  timerDuration: number;                  // 30 minutes in ms
+  timerDuration: number;                  // 25 minutes in ms
   isTimerActive: boolean;
   isTimerExpired: boolean;
   isTimerPaused: boolean;                 // 일시정지 여부

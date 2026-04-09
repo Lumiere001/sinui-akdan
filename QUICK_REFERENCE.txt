@@ -76,7 +76,7 @@ GPS SETTINGS:
   Required members: 3 (to validate location)
 
 TIMER SETTINGS:
-  Duration: 1800000ms (30 minutes)
+  Duration: 1500000ms (25 minutes)
   Check interval: 1000ms (1 second)
   Debounce save: 1000ms
 

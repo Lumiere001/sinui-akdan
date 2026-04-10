@@ -660,7 +660,7 @@ export function Admin() {
                 )}
 
                 {/* Stage 2 수동 해금 버튼 */}
-                {currentStage === 'stage2' && !isS2Complete && team?.currentStep >= 1 && (
+                {currentStage === 'stage2' && !isS2Complete && team && team.currentStep >= 1 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs }}>
                     <span style={{ fontSize: typography.xs, color: colors.textMuted }}>
                       {team.currentStep}단계 진행 중

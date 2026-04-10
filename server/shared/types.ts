@@ -212,6 +212,7 @@ export interface ClientToServerEvents {
   'admin:masterStart': () => void;                                      // 전팀 동시 시작
   'admin:recordStage1Complete': (teamId: number) => void;               // Stage 1 완료 수동 기록
   'admin:skipStage': (teamId: number) => void;                          // 다음 Stage 건너뛰기 (테스트/비상)
+  'admin:forceAdvanceStep': (teamId: number) => void;                   // Stage 2 수동 해금
   'admin:adjustStartTime': (data: { teamId?: number; offsetMs: number }) => void; // 시작 시각 조정
   'admin:toggleTestMode': () => void;                                   // 테스트 모드 전환
   'admin:resetGame': () => void;

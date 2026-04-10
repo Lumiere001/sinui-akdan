@@ -1,293 +1,199 @@
-import { loadGameState, saveGameState, debouncedSaveGameState, resetDataFile } from './persistence.js';
-import type { GameState, TeamState, TeamStage, PlayerPosition, PledgeRecord, ChatMessage } from './shared/types.js';
+import { loadGameState, debouncedSaveGameState, resetDataFile, createInitialGameState } from './persistence.js';
+import {
+  getCurrentStageInfo,
+  computeSkipOffset,
+  DEFAULT_DURATIONS,
+  TEST_DURATIONS,
+} from './shared/types.js';
+import type {
+  GameState,
+  TeamState,
+  TeamGroup,
+  TeamStage,
+  PlayerPosition,
+  PledgeRecord,
+  ChatMessage,
+  Stage2StepRecord,
+} from './shared/types.js';
 
 /**
- * Game state management for V2
- * - Per-team timers (25 minutes each)
- * - Multi-step routes (3 steps per team)
- * - Pledge system
- * - Chat system
- * - JSON persistence
+ * V3 GameStateManager
+ * - 벽시계 기반 자동 Stage 전환 (타이머 제거)
+ * - Master Start로 전팀 동시 시작
+ * - 가조/나조 교차 운영
  */
 class GameStateManager {
   private state: GameState;
 
   constructor() {
     this.state = loadGameState();
-    console.log('Game state loaded from persistence');
+    console.log('V3 Game state loaded from persistence');
   }
 
-  /**
-   * Get current game state
-   */
+  /** Get current game state (deep copy) */
   getState(): GameState {
     return JSON.parse(JSON.stringify(this.state));
   }
 
-  /**
-   * Save state to persistence
-   */
+  /** Save state to persistence */
   private saveState(): void {
     debouncedSaveGameState(this.state);
   }
 
-  // ========== Stage Management ==========
+  // ========== V3 Master Controls ==========
 
   /**
-   * Set team stage (cleans up previous stage timers)
+   * Master Start — 전팀 동시 시작
+   * 모든 팀의 startTime을 현재 시각으로 설정하고 stage를 첫 번째 순서로 전환
    */
-  setTeamStage(teamId: number, stage: TeamStage): void {
-    const team = this.state.teams[teamId];
-    if (!team) {
-      throw new Error(`Team ${teamId} not found`);
+  masterStart(): void {
+    const now = Date.now();
+    this.state.masterStartTime = now;
+
+    for (let i = 1; i <= 10; i++) {
+      const team = this.state.teams[i];
+      if (team) {
+        team.startTime = now;
+        // 첫 Stage 자동 결정
+        const firstStage = team.group === '가조' ? 'stage1' : 'stage2';
+        team.stage = firstStage;
+
+        // 나조(Stage 2 먼저)는 currentStep을 1로 초기화
+        if (firstStage === 'stage2') {
+          team.currentStep = 1;
+          team.completedSteps = [];
+        }
+      }
     }
 
-    const prevStage = team.stage;
-
-    // Clean up Stage 1 timer when leaving stage1/stage1_ready
-    if ((prevStage === 'stage1' || prevStage === 'stage1_ready') &&
-        stage !== 'stage1' && stage !== 'stage1_ready') {
-      team.stage1TimerActive = false;
-      team.stage1TimerPaused = false;
-      team.stage1TimerRemainingAtPause = null;
-    }
-
-    // Clean up Stage 2 timer when leaving stage2/stage2_ready
-    if ((prevStage === 'stage2' || prevStage === 'stage2_ready') &&
-        stage !== 'stage2' && stage !== 'stage2_ready') {
-      team.isTimerActive = false;
-      team.isTimerPaused = false;
-      team.timerRemainingAtPause = null;
-    }
-
-    team.stage = stage;
     this.saveState();
+    console.log(`[V3] Master Start at ${new Date(now).toLocaleTimeString()}`);
   }
 
-  // ========== Stage 1 Timer Management (40 minutes) ==========
+  /**
+   * 주기적 Stage 업데이트 — 벽시계 기반으로 각 팀의 현재 Stage 계산
+   * 1초마다 호출하여 Stage 전환 감지
+   * @returns 변경된 팀 ID 배열
+   */
+  updateStages(): number[] {
+    const changedTeams: number[] = [];
+    const now = Date.now();
 
-  startStage1Timer(teamId: number): void {
+    for (let i = 1; i <= 10; i++) {
+      const team = this.state.teams[i];
+      if (!team || !team.startTime || team.stage === 'idle') continue;
+
+      const info = getCurrentStageInfo(team.startTime, team.group, this.state.durations, now);
+      const newStage = info.stage;
+
+      if (newStage !== team.stage) {
+        const prevStage = team.stage;
+        team.stage = newStage;
+
+        // Stage 2 진입 시 currentStep 초기화 (아직 시작 안 했으면)
+        if (newStage === 'stage2' && team.currentStep === 0) {
+          team.currentStep = 1;
+          team.completedSteps = [];
+        }
+
+        changedTeams.push(i);
+        console.log(`[V3] Team ${i} stage: ${prevStage} → ${newStage}`);
+      }
+    }
+
+    if (changedTeams.length > 0) {
+      this.saveState();
+    }
+
+    return changedTeams;
+  }
+
+  /**
+   * Stage 1 완료 수동 기록 (관리자)
+   */
+  recordStage1Complete(teamId: number): void {
     const team = this.state.teams[teamId];
     if (!team) throw new Error(`Team ${teamId} not found`);
 
-    team.stage = 'stage1';
-    team.stage1TimerStartTime = Date.now();
-    team.stage1TimerDuration = 40 * 60 * 1000;
-    team.stage1TimerActive = true;
-    team.stage1TimerExpired = false;
-    team.stage1TimerPaused = false;
-    team.stage1TimerRemainingAtPause = null;
+    team.stage1CompletedAt = Date.now();
+    this.saveState();
+    console.log(`[V3] Team ${teamId} Stage 1 completed at ${new Date().toLocaleTimeString()}`);
+  }
+
+  /**
+   * 다음 Stage 건너뛰기 — startTime 조정
+   */
+  skipStage(teamId: number): void {
+    const team = this.state.teams[teamId];
+    if (!team || !team.startTime) throw new Error(`Team ${teamId} not started`);
+
+    const offset = computeSkipOffset(team.startTime, team.group, this.state.durations);
+    if (offset > 0) {
+      team.startTime -= offset;
+      console.log(`[V3] Team ${teamId} skip: startTime adjusted by -${Math.round(offset / 1000)}s`);
+      // 즉시 Stage 업데이트
+      this.updateStages();
+    }
     this.saveState();
   }
 
-  stopStage1Timer(teamId: number): void {
+  /**
+   * 시작 시각 조정 (비상용)
+   * teamId가 없으면 전팀, 있으면 해당 팀만
+   */
+  adjustStartTime(offsetMs: number, teamId?: number): void {
+    if (teamId) {
+      const team = this.state.teams[teamId];
+      if (team && team.startTime) {
+        team.startTime += offsetMs;
+        console.log(`[V3] Team ${teamId} startTime adjusted by ${offsetMs}ms`);
+      }
+    } else {
+      // 전팀 조정
+      for (let i = 1; i <= 10; i++) {
+        const team = this.state.teams[i];
+        if (team && team.startTime) {
+          team.startTime += offsetMs;
+        }
+      }
+      if (this.state.masterStartTime) {
+        this.state.masterStartTime += offsetMs;
+      }
+      console.log(`[V3] All teams startTime adjusted by ${offsetMs}ms`);
+    }
+    this.updateStages();
+    this.saveState();
+  }
+
+  /**
+   * 테스트 모드 전환
+   */
+  toggleTestMode(): void {
+    this.state.testMode = !this.state.testMode;
+    this.state.durations = this.state.testMode
+      ? { ...TEST_DURATIONS }
+      : { ...DEFAULT_DURATIONS };
+    console.log(`[V3] Test mode: ${this.state.testMode ? 'ON' : 'OFF'} (durations: ${JSON.stringify(this.state.durations)})`);
+    this.saveState();
+  }
+
+  // ========== Stage 2 Step Management ==========
+
+  /**
+   * Stage 2 단계 전진 (정답 시)
+   */
+  advanceStep(teamId: number, locationId: string): void {
     const team = this.state.teams[teamId];
     if (!team) throw new Error(`Team ${teamId} not found`);
 
-    team.stage1TimerActive = false;
-    team.stage1TimerPaused = false;
-    team.stage1TimerRemainingAtPause = null;
-    this.saveState();
-  }
-
-  pauseStage1Timer(teamId: number): number {
-    const team = this.state.teams[teamId];
-    if (!team) throw new Error(`Team ${teamId} not found`);
-    if (!team.stage1TimerActive || !team.stage1TimerStartTime) {
-      throw new Error(`Team ${teamId} stage1 timer is not active`);
-    }
-
-    const elapsed = Date.now() - team.stage1TimerStartTime;
-    const remaining = Math.max(0, team.stage1TimerDuration - elapsed);
-
-    team.stage1TimerActive = false;
-    team.stage1TimerPaused = true;
-    team.stage1TimerRemainingAtPause = remaining;
-    this.saveState();
-    return remaining;
-  }
-
-  resumeStage1Timer(teamId: number): number {
-    const team = this.state.teams[teamId];
-    if (!team) throw new Error(`Team ${teamId} not found`);
-    if (!team.stage1TimerPaused || team.stage1TimerRemainingAtPause === null) {
-      throw new Error(`Team ${teamId} stage1 timer is not paused`);
-    }
-
-    const remaining = team.stage1TimerRemainingAtPause;
-    team.stage1TimerStartTime = Date.now();
-    team.stage1TimerDuration = remaining;
-    team.stage1TimerActive = true;
-    team.stage1TimerPaused = false;
-    team.stage1TimerRemainingAtPause = null;
-    this.saveState();
-    return remaining;
-  }
-
-  isStage1TimerExpired(teamId: number): boolean {
-    const team = this.state.teams[teamId];
-    if (!team || !team.stage1TimerStartTime || !team.stage1TimerActive) return false;
-    const elapsed = Date.now() - team.stage1TimerStartTime;
-    return elapsed >= team.stage1TimerDuration;
-  }
-
-  expireStage1Timer(teamId: number): void {
-    const team = this.state.teams[teamId];
-    if (!team) throw new Error(`Team ${teamId} not found`);
-    team.stage1TimerActive = false;
-    team.stage1TimerExpired = true;
-    this.saveState();
-  }
-
-  // ========== Stage 2 Timer Management (25 minutes) ==========
-
-  /**
-   * Start individual team timer
-   */
-  startTeamTimer(teamId: number): void {
-    const team = this.state.teams[teamId];
-    if (!team) {
-      throw new Error(`Team ${teamId} not found`);
-    }
-
-    // Auto-set stage to stage2 and clean up stage1 timer
-    team.stage = 'stage2';
-    team.stage1TimerActive = false;
-    team.stage1TimerPaused = false;
-    team.stage1TimerRemainingAtPause = null;
-
-    team.timerStartTime = Date.now();
-    team.timerDuration = 25 * 60 * 1000;
-    team.isTimerActive = true;
-    team.isTimerExpired = false;
-    team.isTimerPaused = false;
-    team.timerRemainingAtPause = null;
-    team.currentStep = 1; // Start at step 1
-    team.completedSteps = [];
-
-    this.saveState();
-  }
-
-  /**
-   * Stop individual team timer (full reset)
-   */
-  stopTeamTimer(teamId: number): void {
-    const team = this.state.teams[teamId];
-    if (!team) {
-      throw new Error(`Team ${teamId} not found`);
-    }
-
-    team.isTimerActive = false;
-    team.isTimerPaused = false;
-    team.timerRemainingAtPause = null;
-    this.saveState();
-  }
-
-  /**
-   * Pause individual team timer
-   */
-  pauseTeamTimer(teamId: number): number {
-    const team = this.state.teams[teamId];
-    if (!team) {
-      throw new Error(`Team ${teamId} not found`);
-    }
-
-    if (!team.isTimerActive || !team.timerStartTime) {
-      throw new Error(`Team ${teamId} timer is not active`);
-    }
-
-    const elapsed = Date.now() - team.timerStartTime;
-    const remaining = Math.max(0, team.timerDuration - elapsed);
-
-    team.isTimerActive = false;
-    team.isTimerPaused = true;
-    team.timerRemainingAtPause = remaining;
-    this.saveState();
-
-    return remaining;
-  }
-
-  /**
-   * Resume individual team timer
-   */
-  resumeTeamTimer(teamId: number): number {
-    const team = this.state.teams[teamId];
-    if (!team) {
-      throw new Error(`Team ${teamId} not found`);
-    }
-
-    if (!team.isTimerPaused || team.timerRemainingAtPause === null) {
-      throw new Error(`Team ${teamId} timer is not paused`);
-    }
-
-    const remaining = team.timerRemainingAtPause;
-    team.timerStartTime = Date.now();
-    team.timerDuration = remaining;
-    team.isTimerActive = true;
-    team.isTimerPaused = false;
-    team.timerRemainingAtPause = null;
-    this.saveState();
-
-    return remaining;
-  }
-
-  /**
-   * Check if team timer has expired
-   */
-  isTeamTimerExpired(teamId: number): boolean {
-    const team = this.state.teams[teamId];
-    if (!team || !team.timerStartTime || !team.isTimerActive) {
-      return false;
-    }
-
-    const elapsed = Date.now() - team.timerStartTime;
-    return elapsed >= team.timerDuration;
-  }
-
-  /**
-   * Mark team timer as expired
-   */
-  expireTeamTimer(teamId: number): void {
-    const team = this.state.teams[teamId];
-    if (!team) {
-      throw new Error(`Team ${teamId} not found`);
-    }
-
-    team.isTimerActive = false;
-    team.isTimerExpired = true;
-    this.saveState();
-  }
-
-  /**
-   * Get timer info for a team
-   */
-  getTeamTimerInfo(teamId: number): { elapsed: number; remaining: number; isActive: boolean; isExpired: boolean } {
-    const team = this.state.teams[teamId];
-    if (!team || !team.timerStartTime) {
-      return { elapsed: 0, remaining: team?.timerDuration || 0, isActive: false, isExpired: false };
-    }
-
-    const elapsed = Date.now() - team.timerStartTime;
-    const remaining = Math.max(0, team.timerDuration - elapsed);
-
-    return {
-      elapsed,
-      remaining,
-      isActive: team.isTimerActive,
-      isExpired: team.isTimerExpired,
+    // 정답 기록
+    const record: Stage2StepRecord = {
+      step: team.currentStep,
+      locationId,
+      isCorrect: true,
+      timestamp: Date.now(),
     };
-  }
-
-  // ========== Step Management ==========
-
-  /**
-   * Advance team to next step
-   */
-  advanceStep(teamId: number): void {
-    const team = this.state.teams[teamId];
-    if (!team) {
-      throw new Error(`Team ${teamId} not found`);
-    }
+    team.stage2History.push(record);
 
     if (!team.completedSteps.includes(team.currentStep)) {
       team.completedSteps.push(team.currentStep);
@@ -296,47 +202,42 @@ class GameStateManager {
     if (team.currentStep < 3) {
       team.currentStep += 1;
     } else {
-      this.completeTeam(teamId);
+      // 3단계 모두 완료
+      team.stage2CompletedAt = Date.now();
+      console.log(`[V3] Team ${teamId} Stage 2 all steps completed!`);
     }
 
     this.saveState();
   }
 
   /**
-   * Mark team as complete
+   * Stage 2 오답 기록
    */
-  completeTeam(teamId: number): void {
+  recordWrongAnswer(teamId: number, locationId: string): void {
     const team = this.state.teams[teamId];
-    if (!team) {
-      throw new Error(`Team ${teamId} not found`);
-    }
+    if (!team) throw new Error(`Team ${teamId} not found`);
 
-    team.isComplete = true;
-    team.currentStep = 4; // Mark as complete
-    team.isTimerActive = false;
-
+    const record: Stage2StepRecord = {
+      step: team.currentStep,
+      locationId,
+      isCorrect: false,
+      timestamp: Date.now(),
+    };
+    team.stage2History.push(record);
     this.saveState();
   }
 
   // ========== Pledge Management ==========
 
-  /**
-   * Add pledge record
-   */
   addPledge(playerId: string, teamId: number): void {
-    const pledgeKey = playerId;
-    this.state.pledges[pledgeKey] = {
+    this.state.pledges[playerId] = {
       playerId,
       teamId,
       completedAt: Date.now(),
     };
-
     this.saveState();
   }
 
-  /**
-   * Remove pledges for a specific team
-   */
   removePledgesForTeam(teamId: number): void {
     const toRemove = Object.keys(this.state.pledges).filter(pid => pid.startsWith(`t${teamId}_`));
     for (const pid of toRemove) {
@@ -345,25 +246,16 @@ class GameStateManager {
     if (toRemove.length > 0) this.saveState();
   }
 
-  /**
-   * Check if player has submitted pledge
-   */
   hasPledge(playerId: string): boolean {
     return playerId in this.state.pledges;
   }
 
-  /**
-   * Get pledge record
-   */
   getPledge(playerId: string): PledgeRecord | null {
     return this.state.pledges[playerId] || null;
   }
 
   // ========== Chat Management ==========
 
-  /**
-   * Add chat message
-   */
   addChatMessage(teamId: number, senderId: string, senderName: string, message: string, isAdmin: boolean): ChatMessage {
     if (!this.state.chatMessages[teamId]) {
       this.state.chatMessages[teamId] = [];
@@ -381,20 +273,13 @@ class GameStateManager {
 
     this.state.chatMessages[teamId].push(chatMessage);
     this.saveState();
-
     return chatMessage;
   }
 
-  /**
-   * Get chat history for a team
-   */
   getChatHistory(teamId: number): ChatMessage[] {
     return this.state.chatMessages[teamId] || [];
   }
 
-  /**
-   * Clear chat history for a team
-   */
   clearChatHistory(teamId: number): void {
     this.state.chatMessages[teamId] = [];
     this.saveState();
@@ -402,36 +287,22 @@ class GameStateManager {
 
   // ========== Representative Management ==========
 
-  /**
-   * Set team representative
-   */
   setRepresentative(teamId: number, playerId: string): void {
     const team = this.state.teams[teamId];
-    if (!team) {
-      throw new Error(`Team ${teamId} not found`);
-    }
-
+    if (!team) throw new Error(`Team ${teamId} not found`);
     team.representative = playerId;
     this.saveState();
   }
 
-  /**
-   * Get team representative
-   */
   getRepresentative(teamId: number): string | null {
     return this.state.teams[teamId]?.representative || null;
   }
 
   // ========== Player Position Management ==========
 
-  /**
-   * Update player position
-   */
   updatePlayerPosition(teamId: number, playerId: string, lat: number, lng: number): void {
     const team = this.state.teams[teamId];
-    if (!team) {
-      throw new Error(`Team ${teamId} not found`);
-    }
+    if (!team) throw new Error(`Team ${teamId} not found`);
 
     team.members[playerId] = {
       playerId,
@@ -440,18 +311,12 @@ class GameStateManager {
       lng,
       timestamp: Date.now(),
     };
-
     this.saveState();
   }
 
-  /**
-   * Add player to team
-   */
   addPlayerToTeam(teamId: number, playerId: string): void {
     const team = this.state.teams[teamId];
-    if (!team) {
-      throw new Error(`Team ${teamId} not found`);
-    }
+    if (!team) throw new Error(`Team ${teamId} not found`);
 
     if (!team.members[playerId]) {
       team.members[playerId] = {
@@ -465,119 +330,63 @@ class GameStateManager {
     }
   }
 
-  /**
-   * Remove player from team
-   */
   removePlayerFromTeam(teamId: number, playerId: string): void {
     const team = this.state.teams[teamId];
-    if (!team) {
-      return;
-    }
+    if (!team) return;
 
     delete team.members[playerId];
-
-    // Clear representative if it was this player
     if (team.representative === playerId) {
       team.representative = null;
     }
-
     this.saveState();
   }
 
-  /**
-   * Get team members with positions
-   */
   getTeamMembers(teamId: number): PlayerPosition[] {
     const team = this.state.teams[teamId];
-    if (!team) {
-      return [];
-    }
-
+    if (!team) return [];
     return Object.values(team.members);
   }
 
-  /**
-   * Get team state
-   */
   getTeamState(teamId: number): TeamState | null {
     const team = this.state.teams[teamId];
-    if (!team) {
-      return null;
-    }
-
+    if (!team) return null;
     return JSON.parse(JSON.stringify(team));
   }
 
   // ========== Game Reset ==========
 
   /**
-   * Reset entire game
+   * 전체 게임 리셋
    */
   resetGame(): void {
-    const teams: Record<number, TeamState> = {};
-    for (let i = 1; i <= 10; i++) {
-      teams[i] = {
-        teamId: i,
-        stage: 'idle',
-        members: {},
-        stage1TimerStartTime: null,
-        stage1TimerDuration: 40 * 60 * 1000,
-        stage1TimerActive: false,
-        stage1TimerExpired: false,
-        stage1TimerPaused: false,
-        stage1TimerRemainingAtPause: null,
-        currentStep: 0,
-        completedSteps: [],
-        isComplete: false,
-        timerStartTime: null,
-        timerDuration: 25 * 60 * 1000,
-        isTimerActive: false,
-        isTimerExpired: false,
-        isTimerPaused: false,
-        timerRemainingAtPause: null,
-        representative: null,
-      };
-    }
-
-    this.state = {
-      teams,
-      pledges: {},
-      chatMessages: {},
-    };
-
+    const freshState = createInitialGameState();
+    this.state = freshState;
     resetDataFile();
     this.saveState();
+    console.log('[V3] Game reset');
   }
 
   /**
-   * Reset a specific team
+   * 특정 팀 리셋
    */
   resetTeam(teamId: number): void {
     const team = this.state.teams[teamId];
-    if (!team) {
-      return;
-    }
+    if (!team) return;
 
+    const group: TeamGroup = teamId <= 5 ? '가조' : '나조';
     team.stage = 'idle';
+    team.group = group;
+    team.startTime = null;
     team.members = {};
-    team.stage1TimerStartTime = null;
-    team.stage1TimerDuration = 40 * 60 * 1000;
-    team.stage1TimerActive = false;
-    team.stage1TimerExpired = false;
-    team.stage1TimerPaused = false;
-    team.stage1TimerRemainingAtPause = null;
+    team.representative = null;
+    team.stage1CompletedAt = null;
     team.currentStep = 0;
     team.completedSteps = [];
-    team.isComplete = false;
-    team.timerStartTime = null;
-    team.timerDuration = 25 * 60 * 1000;
-    team.isTimerActive = false;
-    team.isTimerExpired = false;
-    team.isTimerPaused = false;
-    team.timerRemainingAtPause = null;
-    team.representative = null;
+    team.stage2CompletedAt = null;
+    team.stage2History = [];
 
     this.saveState();
+    console.log(`[V3] Team ${teamId} reset`);
   }
 }
 

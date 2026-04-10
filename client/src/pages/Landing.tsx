@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { validateTeamLogin } from '../data/gameData'
+import { validateTeamLogin, getTeamName } from '../data/gameData'
 import { useSocket } from '../hooks/useSocket'
 import { colors, typography, spacing, radius, shadows, transitions } from '../theme'
 
@@ -377,41 +377,93 @@ export function Landing() {
 
         {/* Login form */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md, marginBottom: spacing.lg }}>
-          {[
-            { label: '이름', type: 'text', value: nameInput, onChange: (v: string) => { setNameInput(v); setError('') }, placeholder: '이름을 입력하세요' },
-            { label: '팀 번호', type: 'number', value: teamInput, onChange: (v: string) => { setTeamInput(v); setError('') }, placeholder: '1 - 10', extra: { min: '1', max: '10', inputMode: 'numeric' as const } },
-            { label: '비밀번호', type: 'password', value: passwordInput, onChange: (v: string) => { setPasswordInput(v); setError('') }, placeholder: '4자리 숫자', extra: { inputMode: 'numeric' as const, maxLength: 4 } },
-          ].map((field, i) => (
-            <div key={i}>
-              <label style={{
-                display: 'block', fontSize: typography.xs, color: colors.textMuted,
-                textTransform: 'uppercase', letterSpacing: typography.wider,
-                fontWeight: typography.semibold, marginBottom: spacing.sm,
-                fontFamily: typography.fontFamily,
-              }}>
-                {field.label}
-              </label>
-              <input
-                type={field.type}
-                value={field.value}
-                onChange={(e) => field.onChange(e.target.value)}
-                onKeyDown={field.type === 'password' ? (e) => e.key === 'Enter' && handleLogin() : undefined}
-                placeholder={field.placeholder}
-                {...(field.extra || {})}
-                style={{
-                  width: '100%', padding: `${spacing.md}px ${spacing.lg}px`,
-                  background: colors.surfaceLight,
-                  border: `1px solid ${colors.border}`,
-                  borderRadius: radius.md, color: colors.textPrimary,
-                  fontSize: typography.base, fontFamily: typography.fontFamily,
-                  outline: 'none', transition: transitions.normal,
-                  boxSizing: 'border-box' as const,
-                }}
-                onFocus={(e) => e.currentTarget.style.borderColor = colors.accent}
-                onBlur={(e) => e.currentTarget.style.borderColor = colors.border as string}
-              />
-            </div>
-          ))}
+          {/* 이름 */}
+          <div>
+            <label style={{
+              display: 'block', fontSize: typography.xs, color: colors.textMuted,
+              textTransform: 'uppercase', letterSpacing: typography.wider,
+              fontWeight: typography.semibold, marginBottom: spacing.sm,
+              fontFamily: typography.fontFamily,
+            }}>이름</label>
+            <input
+              type="text"
+              value={nameInput}
+              onChange={e => { setNameInput(e.target.value); setError('') }}
+              placeholder="이름을 입력하세요"
+              style={{
+                width: '100%', padding: `${spacing.md}px ${spacing.lg}px`,
+                background: colors.surfaceLight, border: `1px solid ${colors.border}`,
+                borderRadius: radius.md, color: colors.textPrimary,
+                fontSize: typography.base, fontFamily: typography.fontFamily,
+                outline: 'none', transition: transitions.normal, boxSizing: 'border-box' as const,
+              }}
+              onFocus={e => e.currentTarget.style.borderColor = colors.accent}
+              onBlur={e => e.currentTarget.style.borderColor = colors.border as string}
+            />
+          </div>
+
+          {/* 팀 선택 (드롭다운) */}
+          <div>
+            <label style={{
+              display: 'block', fontSize: typography.xs, color: colors.textMuted,
+              textTransform: 'uppercase', letterSpacing: typography.wider,
+              fontWeight: typography.semibold, marginBottom: spacing.sm,
+              fontFamily: typography.fontFamily,
+            }}>팀 선택</label>
+            <select
+              value={teamInput}
+              onChange={e => { setTeamInput(e.target.value); setError('') }}
+              style={{
+                width: '100%', padding: `${spacing.md}px ${spacing.lg}px`,
+                background: colors.surfaceLight, border: `1px solid ${colors.border}`,
+                borderRadius: radius.md, color: teamInput ? colors.textPrimary : colors.textMuted,
+                fontSize: typography.base, fontFamily: typography.fontFamily,
+                outline: 'none', transition: transitions.normal, boxSizing: 'border-box' as const,
+                appearance: 'none', WebkitAppearance: 'none',
+                backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 12px center',
+                backgroundSize: '16px',
+              }}
+              onFocus={e => e.currentTarget.style.borderColor = colors.accent}
+              onBlur={e => e.currentTarget.style.borderColor = colors.border as string}
+            >
+              <option value="" disabled>팀을 선택하세요</option>
+              {Array.from({ length: 10 }, (_, i) => i + 1).map(t => (
+                <option key={t} value={String(t)} style={{ color: colors.textPrimary, background: colors.bg }}>
+                  {t}. {getTeamName(t)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 비밀번호 */}
+          <div>
+            <label style={{
+              display: 'block', fontSize: typography.xs, color: colors.textMuted,
+              textTransform: 'uppercase', letterSpacing: typography.wider,
+              fontWeight: typography.semibold, marginBottom: spacing.sm,
+              fontFamily: typography.fontFamily,
+            }}>비밀번호</label>
+            <input
+              type="password"
+              value={passwordInput}
+              onChange={e => { setPasswordInput(e.target.value); setError('') }}
+              onKeyDown={e => e.key === 'Enter' && handleLogin()}
+              placeholder="4자리 숫자"
+              inputMode="numeric"
+              maxLength={4}
+              style={{
+                width: '100%', padding: `${spacing.md}px ${spacing.lg}px`,
+                background: colors.surfaceLight, border: `1px solid ${colors.border}`,
+                borderRadius: radius.md, color: colors.textPrimary,
+                fontSize: typography.base, fontFamily: typography.fontFamily,
+                outline: 'none', transition: transitions.normal, boxSizing: 'border-box' as const,
+              }}
+              onFocus={e => e.currentTarget.style.borderColor = colors.accent}
+              onBlur={e => e.currentTarget.style.borderColor = colors.border as string}
+            />
+          </div>
 
           {/* Representative checkbox */}
           <div

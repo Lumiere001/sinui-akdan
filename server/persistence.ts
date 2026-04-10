@@ -1,39 +1,40 @@
 import fs from 'fs';
 import path from 'path';
-import type { GameState } from './shared/types.js';
+import type { GameState, TeamGroup } from './shared/types.js';
+import { DEFAULT_DURATIONS } from './shared/types.js';
 
 const DATA_FILE = path.join(process.cwd(), 'data.json');
 
 /**
- * Default initial game state
+ * V3 초기 게임 상태 생성
+ * - 팀 1~5: 가조, 팀 6~10: 나조
+ * - 벽시계 기반 자동 전환 (타이머 필드 제거)
  */
 function createInitialGameState(): GameState {
   const teams: Record<number, any> = {};
   for (let i = 1; i <= 10; i++) {
+    const group: TeamGroup = i <= 5 ? '가조' : '나조';
     teams[i] = {
       teamId: i,
+      group,
       stage: 'idle',
+      startTime: null,
       members: {},
-      stage1TimerStartTime: null,
-      stage1TimerDuration: 40 * 60 * 1000,
-      stage1TimerActive: false,
-      stage1TimerExpired: false,
-      stage1TimerPaused: false,
-      stage1TimerRemainingAtPause: null,
+      representative: null,
+      // Stage 1
+      stage1CompletedAt: null,
+      // Stage 2
       currentStep: 0,
       completedSteps: [],
-      isComplete: false,
-      timerStartTime: null,
-      timerDuration: 25 * 60 * 1000,
-      isTimerActive: false,
-      isTimerExpired: false,
-      isTimerPaused: false,
-      timerRemainingAtPause: null,
-      representative: null,
+      stage2CompletedAt: null,
+      stage2History: [],
     };
   }
 
   return {
+    masterStartTime: null,
+    testMode: false,
+    durations: { ...DEFAULT_DURATIONS },
     teams,
     pledges: {},
     chatMessages: {},
@@ -54,7 +55,6 @@ export function loadGameState(): GameState {
     console.error('Error loading game state:', error);
   }
 
-  // Return default state if file doesn't exist or error
   return createInitialGameState();
 }
 
@@ -98,3 +98,8 @@ export function resetDataFile(): void {
     console.error('Error resetting data file:', error);
   }
 }
+
+/**
+ * Get a fresh initial game state (for reset)
+ */
+export { createInitialGameState };

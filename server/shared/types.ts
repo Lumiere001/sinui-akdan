@@ -1,4 +1,4 @@
-// ========== V2 공유 타입 정의 ==========
+// ========== V3 공유 타입 정의 ==========
 
 // Location information
 export interface Location {
@@ -36,102 +36,184 @@ export interface PlayerPosition {
   timestamp: number;
 }
 
-// Stage type: 'idle' | 'stage1_ready' | 'stage1' | 'stage2_ready' | 'stage2'
-export type TeamStage = 'idle' | 'stage1_ready' | 'stage1' | 'stage2_ready' | 'stage2';
+// ========== V3 핵심 타입 ==========
 
-// Team state during game
-export interface TeamState {
-  teamId: number;
-  stage: TeamStage;                       // 현재 스테이지 상태
-  members: Record<string, PlayerPosition>;
-  // Stage 1 timer (40 minutes)
-  stage1TimerStartTime: number | null;
-  stage1TimerDuration: number;            // 40 minutes in ms
-  stage1TimerActive: boolean;
-  stage1TimerExpired: boolean;
-  stage1TimerPaused: boolean;
-  stage1TimerRemainingAtPause: number | null;
-  // Stage 2 (existing fields)
-  currentStep: number;                    // 0=not started, 1-3=current step, 4=completed
-  completedSteps: number[];               // Array of completed step numbers
-  isComplete: boolean;
-  timerStartTime: number | null;          // When this team's timer started
-  timerDuration: number;                  // 25 minutes in ms
-  isTimerActive: boolean;
-  isTimerExpired: boolean;
-  isTimerPaused: boolean;                 // 일시정지 여부
-  timerRemainingAtPause: number | null;   // 일시정지 시 남은 시간 (ms)
-  representative: string | null;          // playerId of team representative
+// 팀 그룹 (가조: 1~5, 나조: 6~10)
+export type TeamGroup = '가조' | '나조';
+
+// Stage 상태 — V3는 _ready 없음, 벽시계 기반 자동 전환
+export type TeamStage = 'idle' | 'stage1' | 'stage2' | 'stage3' | 'finished';
+
+// Stage 소요 시간 (ms) — 테스트 모드와 실전 모드용
+export interface StageDurations {
+  stage1: number;
+  stage2: number;
+  stage3: number;
 }
 
-// Pledge record (player completes the final action)
+export const DEFAULT_DURATIONS: StageDurations = {
+  stage1: 30 * 60 * 1000,   // 30분
+  stage2: 32 * 60 * 1000,   // 32분
+  stage3: 30 * 60 * 1000,   // 30분
+};
+
+export const TEST_DURATIONS: StageDurations = {
+  stage1: 1 * 60 * 1000,    // 1분
+  stage2: 1 * 60 * 1000,    // 1분
+  stage3: 1 * 60 * 1000,    // 1분
+};
+
+// Stage 2 GPS 미션 기록 (단계별 정답/오답)
+export interface Stage2StepRecord {
+  step: number;
+  locationId: string;
+  isCorrect: boolean;
+  timestamp: number;
+}
+
+// ========== V3 팀 상태 ==========
+export interface TeamState {
+  teamId: number;
+  group: TeamGroup;
+  stage: TeamStage;
+  startTime: number | null;                 // 이 팀의 게임 시작 시각 (보통 masterStartTime과 동일, 비상 조정 가능)
+  members: Record<string, PlayerPosition>;
+  representative: string | null;
+
+  // Stage 1 (실내 방탈출)
+  stage1CompletedAt: number | null;          // 관리자가 수동 기록한 완료 시각
+
+  // Stage 2 (실외 GPS 미션)
+  currentStep: number;                       // 0=미시작, 1-3=진행 중
+  completedSteps: number[];                  // 완료한 단계 배열
+  stage2CompletedAt: number | null;          // 3단계 모두 정답 시 자동 기록
+  stage2History: Stage2StepRecord[];         // 단계별 시도 기록
+}
+
+// Pledge record
 export interface PledgeRecord {
   playerId: string;
   teamId: number;
-  completedAt: number;                    // Timestamp
+  completedAt: number;
 }
 
-// Chat message for team-admin communication
+// Chat message
 export interface ChatMessage {
   id: string;
   teamId: number;
-  senderId: string;                       // playerId
+  senderId: string;
   senderName: string;
   message: string;
   timestamp: number;
   isAdmin: boolean;
 }
 
-// Complete game state
+// ========== V3 게임 상태 ==========
 export interface GameState {
+  masterStartTime: number | null;            // Master Start 시각 (전역)
+  testMode: boolean;                         // 테스트 모드 여부
+  durations: StageDurations;                 // 현재 적용 중인 Stage 시간
   teams: Record<number, TeamState>;
-  pledges: Record<string, PledgeRecord>;  // Key: playerId
-  chatMessages: Record<number, ChatMessage[]>; // Key: teamId
+  pledges: Record<string, PledgeRecord>;
+  chatMessages: Record<number, ChatMessage[]>;
 }
 
-// Socket.io event types
+// ========== Stage 계산 헬퍼 ==========
+
+/** 그룹별 Stage 진행 순서 */
+export function getStageSequence(group: TeamGroup): ('stage1' | 'stage2' | 'stage3')[] {
+  return group === '가조'
+    ? ['stage1', 'stage2', 'stage3']
+    : ['stage2', 'stage1', 'stage3'];
+}
+
+/** 현재 Stage 정보 계산 (벽시계 기반) */
+export interface StageInfo {
+  stage: TeamStage;
+  stageElapsed: number;    // 현재 Stage 경과 시간 (ms)
+  stageRemaining: number;  // 현재 Stage 남은 시간 (ms)
+  stageIndex: number;      // 0, 1, 2 (진행 순서 내 인덱스)
+  totalElapsed: number;    // 전체 경과 시간 (ms)
+}
+
+export function getCurrentStageInfo(
+  startTime: number,
+  group: TeamGroup,
+  durations: StageDurations,
+  now?: number,
+): StageInfo {
+  const currentTime = now ?? Date.now();
+  const elapsed = currentTime - startTime;
+  const sequence = getStageSequence(group);
+
+  let cumulative = 0;
+  for (let i = 0; i < sequence.length; i++) {
+    const stageName = sequence[i];
+    const duration = durations[stageName];
+    if (elapsed < cumulative + duration) {
+      return {
+        stage: stageName,
+        stageElapsed: elapsed - cumulative,
+        stageRemaining: cumulative + duration - elapsed,
+        stageIndex: i,
+        totalElapsed: elapsed,
+      };
+    }
+    cumulative += duration;
+  }
+
+  return { stage: 'finished', stageElapsed: 0, stageRemaining: 0, stageIndex: 3, totalElapsed: elapsed };
+}
+
+/** "다음 Stage로 건너뛰기" — startTime을 조정해서 현재 Stage가 즉시 끝나도록 */
+export function computeSkipOffset(
+  startTime: number,
+  group: TeamGroup,
+  durations: StageDurations,
+  now?: number,
+): number {
+  const info = getCurrentStageInfo(startTime, group, durations, now);
+  if (info.stage === 'finished') return 0;
+  // startTime을 stageRemaining만큼 앞당기면 현재 Stage가 방금 끝난 것처럼 됨
+  return info.stageRemaining;
+}
+
+// ========== Socket.io 이벤트 타입 ==========
 export interface ServerToClientEvents {
   'game:state': (state: GameState) => void;
   'pledge:status': (data: { playerId: string; hasPledge: boolean }) => void;
-  'team:stageChange': (data: { teamId: number; stage: TeamStage }) => void;
+  // Stage 2 GPS 미션 이벤트
   'team:stageUpdate': (data: { teamId: number; currentStep: number; hint: string; locations: { correctId: string; wrongId: string } }) => void;
-  'team:stepComplete': (data: { teamId: number; stepNumber: number; photo: string }) => void;
-  'team:wrong': (data: { teamId: number; locationId: string; photo: string }) => void;
-  'team:complete': (data: { teamId: number; photo: string }) => void;
-  'team:timerStart': (data: { teamId: number; duration: number }) => void;
-  'team:timerPaused': (data: { teamId: number; remaining: number }) => void;
-  'team:timerResumed': (data: { teamId: number; duration: number }) => void;
-  'team:timerExpired': (data: { teamId: number }) => void;
-  'team:stage1TimerStart': (data: { teamId: number; duration: number }) => void;
-  'team:stage1TimerPaused': (data: { teamId: number; remaining: number }) => void;
-  'team:stage1TimerResumed': (data: { teamId: number; duration: number }) => void;
-  'team:stage1TimerExpired': (data: { teamId: number }) => void;
+  'team:stepComplete': (data: { teamId: number; stepNumber: number }) => void;
+  'team:wrong': (data: { teamId: number; locationId: string }) => void;
+  'team:stage2Complete': (data: { teamId: number }) => void;
+  // 위치/접근
   'team:positions': (positions: PlayerPosition[]) => void;
   'team:memberCount': (data: { locationId: string; count: number; needed: number }) => void;
+  // 채팅 (전 Stage, 대표만)
   'chat:message': (data: ChatMessage) => void;
   'chat:history': (data: ChatMessage[]) => void;
   'representative:status': (data: { teamId: number; representativeId: string | null; representativeName: string | null }) => void;
+  // 관리자용
   'admin:allPositions': (data: Record<number, PlayerPosition[]>) => void;
   'error': (data: { message: string }) => void;
 }
 
 export interface ClientToServerEvents {
+  // 참여자
   'player:join': (data: { teamId: number; playerId: string; playerName: string; password: string; isRepresentative: boolean }) => void;
   'player:position': (data: PlayerPosition) => void;
   'player:checkLocation': (data: { locationId: string }) => void;
   'pledge:submit': (data: { playerId: string; teamId: number }) => void;
   'pledge:check': (data: { playerId: string }) => void;
   'chat:send': (data: { teamId: number; message: string }) => void;
+  // 관리자
   'admin:join': (password: string) => void;
-  'admin:setStage': (data: { teamId: number; stage: TeamStage }) => void;
-  'admin:startTimer': (teamId: number) => void;
-  'admin:stopTimer': (teamId: number) => void;
-  'admin:pauseTimer': (teamId: number) => void;
-  'admin:resumeTimer': (teamId: number) => void;
-  'admin:stage1StartTimer': (teamId: number) => void;
-  'admin:stage1StopTimer': (teamId: number) => void;
-  'admin:stage1PauseTimer': (teamId: number) => void;
-  'admin:stage1ResumeTimer': (teamId: number) => void;
+  'admin:masterStart': () => void;                                      // 전팀 동시 시작
+  'admin:recordStage1Complete': (teamId: number) => void;               // Stage 1 완료 수동 기록
+  'admin:skipStage': (teamId: number) => void;                          // 다음 Stage 건너뛰기 (테스트/비상)
+  'admin:adjustStartTime': (data: { teamId?: number; offsetMs: number }) => void; // 시작 시각 조정
+  'admin:toggleTestMode': () => void;                                   // 테스트 모드 전환
   'admin:resetGame': () => void;
   'admin:resetTeam': (teamId: number) => void;
 }

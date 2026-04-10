@@ -62,7 +62,7 @@ export function checkProximity(playerPos: PlayerPosition, location: Location): P
 /**
  * Check team presence at a location
  * Counts how many team members are within the team check radius (50m)
- * and determines if minimum required members (3) are present
+ * and determines if minimum required members (4) are present
  *
  * @param teamId - Team ID
  * @param locationId - Location ID to check
@@ -82,7 +82,7 @@ export function checkTeamPresence(
   gameStateManager: any,
 ): TeamPresenceResult {
   const TEAM_CHECK_RADIUS = 40; // meters (unlockRadius와 동일)
-  const REQUIRED_MEMBERS = 3;
+  const REQUIRED_MEMBERS = 4;
 
   const location = getLocation(locationId);
   if (!location) {

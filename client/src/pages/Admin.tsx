@@ -676,7 +676,7 @@ export function Admin() {
                 {/* Stage 2 complete status */}
                 {isS2Complete && (
                   <div style={{ fontSize: typography.xs, color: colors.accent, marginBottom: spacing.xs }}>
-                    ✅ Stage 2 미션 완료
+                    ✅ Stage 2 미션 {getStepLabel(tId)}
                   </div>
                 )}
 

@@ -115,9 +115,13 @@ class GameStateManager {
     const team = this.state.teams[teamId];
     if (!team) throw new Error(`Team ${teamId} not found`);
 
-    team.stage1CompletedAt = Date.now();
-    this.saveState();
-    console.log(`[V3] Team ${teamId} Stage 1 completed at ${new Date().toLocaleTimeString()}`);
+    if (!team.stage1CompletedAt) {
+      team.stage1CompletedAt = Date.now();
+      this.saveState();
+      console.log(`[V3] Team ${teamId} Stage 1 completed at ${new Date().toLocaleTimeString()}`);
+    } else {
+      console.log(`[V3] Team ${teamId} Stage 1 already completed, ignoring duplicate`);
+    }
   }
 
   /**
@@ -126,6 +130,7 @@ class GameStateManager {
   skipStage(teamId: number): void {
     const team = this.state.teams[teamId];
     if (!team || !team.startTime) throw new Error(`Team ${teamId} not started`);
+    if (team.stage === 'finished' || team.stage === 'idle') throw new Error(`Team ${teamId} is ${team.stage}, cannot skip`);
 
     const offset = computeSkipOffset(team.startTime, team.group, this.state.durations);
     if (offset > 0) {
@@ -169,6 +174,13 @@ class GameStateManager {
    * 테스트 모드 전환
    */
   toggleTestMode(): void {
+    // 게임 진행 중에는 토글 불가 (startTime이 설정된 팀이 있으면 진행 중)
+    const isGameActive = Object.values(this.state.teams).some(t => t.startTime !== null);
+    if (isGameActive) {
+      console.log(`[V3] Test mode toggle blocked: game is active`);
+      throw new Error('게임 진행 중에는 테스트 모드를 변경할 수 없습니다');
+    }
+
     this.state.testMode = !this.state.testMode;
     this.state.durations = this.state.testMode
       ? { ...TEST_DURATIONS }
@@ -239,7 +251,10 @@ class GameStateManager {
   }
 
   removePledgesForTeam(teamId: number): void {
-    const toRemove = Object.keys(this.state.pledges).filter(pid => pid.startsWith(`t${teamId}_`));
+    const toRemove = Object.keys(this.state.pledges).filter(pid => {
+      const pledge = this.state.pledges[pid];
+      return pledge && pledge.teamId === teamId;
+    });
     for (const pid of toRemove) {
       delete this.state.pledges[pid];
     }

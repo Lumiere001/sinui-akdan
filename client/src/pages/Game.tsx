@@ -67,6 +67,9 @@ export function Game() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [joined, setJoined] = useState(false)
 
+  // Stage 2 규칙 확인 여부
+  const [stage2RulesAcked, setStage2RulesAcked] = useState(false)
+
   // Overlays
   const [showStepComplete, setShowStepComplete] = useState<{ stepNumber: number } | null>(null)
   const [showWrong, setShowWrong] = useState<{ locationId: string } | null>(null)
@@ -230,11 +233,6 @@ export function Game() {
     return () => clearTimeout(timer)
   }, [socket, position, teamId, playerId])
 
-  // Scroll chat to bottom
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [chatMessages])
-
   useEffect(() => {
     chatOpenRef.current = chatOpen
     if (chatOpen) setUnreadCount(0)
@@ -244,6 +242,8 @@ export function Game() {
     if (!socket || !chatInput.trim()) return
     socket.emit('chat:send', { teamId, message: chatInput.trim() })
     setChatInput('')
+    // 메시지 보낼 때만 자동 스크롤
+    setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
   }, [socket, teamId, chatInput])
 
   // Check location handler (Stage 2 only)
@@ -473,6 +473,74 @@ export function Game() {
   // ========== STAGE 2 (실외 GPS 미션) ==========
   if (computedStage === 'stage2') {
     const isNajo = group === '나조'
+
+    // 규칙 안내 화면 (확인 전)
+    if (!stage2RulesAcked) {
+      return (
+        <div style={{ background: colors.bg, minHeight: '100vh', color: colors.textPrimary, fontFamily: typography.fontFamily, display: 'flex', flexDirection: 'column' }}>
+          <Header stageLabel="Stage 2 준비" />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: `${spacing.xl}px ${spacing.xl}px` }}>
+            <div style={{ textAlign: 'center', width: '100%', maxWidth: 340 }}>
+              <div style={{ fontSize: 48, marginBottom: spacing.lg }}>🗺️</div>
+              <div style={{ fontSize: typography.lg, fontWeight: typography.bold, color: colors.accent, marginBottom: spacing.sm }}>Stage 2 준비</div>
+              <div style={{ fontSize: typography.base, color: colors.textMuted, marginBottom: spacing.xl }}>규칙을 확인하세요!</div>
+
+              {/* Game Rules */}
+              <div style={{
+                background: colors.borderLight, border: `1px solid ${colors.border}`,
+                borderRadius: radius.lg, padding: spacing.lg, textAlign: 'left',
+                marginBottom: spacing.xl,
+              }}>
+                {[
+                  { icon: '📍', title: '장소 찾기', desc: '힌트를 읽고 3개의 장소를 순서대로 찾아가세요. 각 단계마다 2곳 중 정답 장소를 골라야 합니다.' },
+                  { icon: '⏱', title: '제한 시간', desc: '제한 시간 안에 3개의 장소를 모두 찾으면 악보 조각을 획득합니다.' },
+                  { icon: '👥', title: '팀 협동', desc: '팀원 3명 이상이 정답 장소 근처(50m)에 모여야 해금됩니다. 함께 움직이세요!' },
+                ].map((rule, i) => (
+                  <div key={i} style={{
+                    display: 'flex', gap: spacing.md, alignItems: 'flex-start',
+                    marginBottom: i < 2 ? spacing.lg : 0,
+                  }}>
+                    <span style={{ fontSize: 18, marginTop: 2 }}>{rule.icon}</span>
+                    <div>
+                      <div style={{ fontSize: typography.sm, fontWeight: typography.semibold, color: colors.textPrimary, marginBottom: spacing.xs }}>
+                        {rule.title}
+                      </div>
+                      <div style={{ fontSize: typography.sm, color: colors.textSecondary, lineHeight: 1.6 }}>
+                        {rule.desc}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Timer (계속 흐름) */}
+              <div style={{
+                fontSize: typography.timer, fontWeight: typography.bold, lineHeight: 1,
+                fontVariantNumeric: 'tabular-nums', fontFamily: typography.monoFamily,
+                color: colors.textSecondary, marginBottom: spacing.xl,
+              }}>
+                {formatTime(stageRemaining)}
+              </div>
+
+              {/* 시작 버튼 */}
+              <button
+                onClick={() => setStage2RulesAcked(true)}
+                style={{
+                  width: '100%', padding: `${spacing.md}px`, borderRadius: radius.md,
+                  background: colors.accent, color: colors.bg, border: 'none',
+                  fontSize: typography.base, fontWeight: typography.semibold,
+                  cursor: 'pointer', fontFamily: typography.fontFamily,
+                }}>
+                규칙을 다 읽었습니다. Stage 2 시작!
+              </button>
+            </div>
+          </div>
+          <ErrorBanner />
+          {chatWidget}
+        </div>
+      )
+    }
+
     return (
       <div style={{ background: colors.bg, minHeight: '100vh', color: colors.textPrimary, fontFamily: typography.fontFamily }}>
         <Header stageLabel={`Stage 2 · ${currentStep}단계`} />

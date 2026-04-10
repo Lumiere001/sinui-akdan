@@ -678,14 +678,14 @@ io.on('connection', (socket) => {
     try {
       gameStateManager.resetGame();
 
-      const socketsToDisconnect: string[] = [];
-      teamConnections.forEach((value, key) => {
-        socketsToDisconnect.push(key);
+      // 팀 소켓 연결 해제: 팀룸에서 제거하여 좀비 커넥션 방지
+      teamConnections.forEach((value, socketId) => {
+        const teamSocket = io.sockets.sockets.get(socketId);
+        if (teamSocket) {
+          teamSocket.leave(`team:${value.teamId}`);
+        }
       });
-
-      for (const socketId of socketsToDisconnect) {
-        teamConnections.delete(socketId);
-      }
+      teamConnections.clear();
 
       io.emit('game:state', gameStateManager.getState());
       console.log('[Admin] Game reset');

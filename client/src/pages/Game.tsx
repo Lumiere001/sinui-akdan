@@ -273,9 +273,7 @@ export function Game() {
   }
 
   // ========== Chat Widget (shared across all stages) ==========
-  const ChatWidget = () => {
-    if (!isRepresentative) return null
-    return (
+  const chatWidget = !isRepresentative ? null : (
       <div style={{ position: 'fixed', bottom: spacing.lg, right: spacing.lg, zIndex: 110 }}>
         {!chatOpen && (
           <button
@@ -356,8 +354,7 @@ export function Game() {
           </div>
         )}
       </div>
-    )
-  }
+  )
 
   // ========== Error Banner ==========
   const ErrorBanner = () => errorMsg ? (
@@ -410,7 +407,7 @@ export function Game() {
           </div>
         </div>
         <ErrorBanner />
-        <ChatWidget />
+        {chatWidget}
       </div>
     )
   }
@@ -468,7 +465,7 @@ export function Game() {
           </div>
         </div>
         <ErrorBanner />
-        <ChatWidget />
+        {chatWidget}
       </div>
     )
   }
@@ -732,7 +729,7 @@ export function Game() {
           </div>
         )}
 
-        <ChatWidget />
+        {chatWidget}
       </div>
     )
   }
@@ -770,7 +767,7 @@ export function Game() {
           </div>
         </div>
         <ErrorBanner />
-        <ChatWidget />
+        {chatWidget}
       </div>
     )
   }
@@ -792,7 +789,7 @@ export function Game() {
           </div>
         </div>
         <ErrorBanner />
-        <ChatWidget />
+        {chatWidget}
       </div>
     )
   }

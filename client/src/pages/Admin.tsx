@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useSocket } from '../hooks/useSocket'
 import type { GameState, ChatMessage, PlayerPosition, TeamStage } from '../../../shared/types'
-import { getCurrentStageInfo } from '../../../shared/types'
+import { getCurrentStageInfo, getStageSequence } from '../../../shared/types'
 import { colors, typography, spacing, radius, transitions } from '../theme'
 import { getTeamName, getTeamLabel } from '../data/gameData'
 
@@ -277,7 +277,23 @@ export function Admin() {
   function getStepLabel(teamId: number): string {
     const team = gameState?.teams[teamId]
     if (!team) return '-'
-    if (team.stage2CompletedAt) return '완료'
+    if (team.stage2CompletedAt) {
+      // 소요 시간 계산
+      if (team.startTime && gameState) {
+        const sequence = getStageSequence(team.group)
+        const stage2Index = sequence.indexOf('stage2')
+        let stage2Start = team.startTime
+        for (let i = 0; i < stage2Index; i++) {
+          stage2Start += gameState.durations[sequence[i]]
+        }
+        const elapsedMs = team.stage2CompletedAt - stage2Start
+        const totalSec = Math.max(0, Math.floor(elapsedMs / 1000))
+        const min = Math.floor(totalSec / 60)
+        const sec = totalSec % 60
+        return `완료 (${min}분 ${sec}초)`
+      }
+      return '완료'
+    }
     if (team.currentStep === 0) return '대기'
     return `${team.currentStep}/3`
   }

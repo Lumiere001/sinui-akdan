@@ -298,6 +298,22 @@ export function Admin() {
     return `${team.currentStep}/3`
   }
 
+  function getS1ElapsedLabel(teamId: number): string | null {
+    const team = gameState?.teams[teamId]
+    if (!team || !team.stage1CompletedAt || !team.startTime || !gameState) return null
+    const sequence = getStageSequence(team.group)
+    const stage1Index = sequence.indexOf('stage1')
+    let stage1Start = team.startTime
+    for (let i = 0; i < stage1Index; i++) {
+      stage1Start += gameState.durations[sequence[i]]
+    }
+    const elapsedMs = team.stage1CompletedAt - stage1Start
+    const totalSec = Math.max(0, Math.floor(elapsedMs / 1000))
+    const min = Math.floor(totalSec / 60)
+    const sec = totalSec % 60
+    return `${min}분 ${sec}초`
+  }
+
   // Login screen
   if (!isLoggedIn) {
     return (
@@ -509,6 +525,9 @@ export function Admin() {
                     {currentStage === 'stage2' && (
                       <span style={{ fontSize: typography.xs, color: colors.textMuted }}>단계 {getStepLabel(tId)}</span>
                     )}
+                    {currentStage !== 'stage2' && isS2Complete && (
+                      <span style={{ fontSize: typography.xs, color: colors.accent }}>S2 {getStepLabel(tId)}</span>
+                    )}
                   </div>
                   {currentStage !== 'idle' && currentStage !== 'finished' && (
                     <span style={{
@@ -588,7 +607,7 @@ export function Admin() {
                 {currentStage === 'stage1' && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs }}>
                     <span style={{ fontSize: typography.xs, color: isS1Complete ? colors.accent : colors.textMuted }}>
-                      {isS1Complete ? '✅ 미션 완료 기록됨' : '미션 진행 중'}
+                      {isS1Complete ? `✅ 미션 완료 (${getS1ElapsedLabel(tId) || ''})` : '미션 진행 중'}
                     </span>
                     {!isS1Complete && (
                       <button onClick={() => recordStage1Complete(tId)} style={{
@@ -597,6 +616,11 @@ export function Admin() {
                         color: colors.accent, cursor: 'pointer', fontFamily: typography.fontFamily,
                       }}>완료 기록</button>
                     )}
+                  </div>
+                )}
+                {currentStage !== 'stage1' && isS1Complete && (
+                  <div style={{ marginBottom: spacing.xs }}>
+                    <span style={{ fontSize: typography.xs, color: colors.accent }}>S1 완료 ({getS1ElapsedLabel(tId) || ''})</span>
                   </div>
                 )}
 

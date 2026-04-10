@@ -641,20 +641,21 @@ io.on('connection', (socket) => {
       console.log(`[Admin] Team ${teamId} Step ${teamState.currentStep} force-advanced`);
 
       const teamRoom = `team:${teamId}`;
-      io.to(teamRoom).emit('team:stepComplete', { stepNumber: teamState.currentStep });
+      io.to(teamRoom).emit('team:stepComplete', { teamId, stepNumber: teamState.currentStep });
 
       const updatedTeamState = gameStateManager.getTeamState(teamId);
       if (updatedTeamState?.stage2CompletedAt) {
-        io.to(teamRoom).emit('team:stage2Complete');
+        io.to(teamRoom).emit('team:stage2Complete', { teamId });
       } else if (updatedTeamState) {
         const nextRoute = teamRoute?.steps.find(s => s.stepNumber === updatedTeamState.currentStep);
         if (nextRoute) {
           io.to(teamRoom).emit('team:stageUpdate', {
+            teamId,
             currentStep: updatedTeamState.currentStep,
             hint: nextRoute.hint,
             locations: {
-              correct: nextRoute.correctLocation,
-              wrong: nextRoute.wrongLocation,
+              correctId: nextRoute.correctLocation,
+              wrongId: nextRoute.wrongLocation,
             },
           });
         }

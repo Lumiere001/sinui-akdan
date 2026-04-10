@@ -9,8 +9,8 @@ export const LOCATIONS: Location[] = [
   { id: '5', name: '이장우 가옥',       lat: 35.140423, lng: 126.914215, unlockRadius: 40, approachRadius: 100 },
   { id: '6', name: '양림교회',          lat: 35.138181, lng: 126.915584, unlockRadius: 40, approachRadius: 100 },
   { id: '8', name: '최승효 가옥',       lat: 35.141354, lng: 126.913985, unlockRadius: 40, approachRadius: 100 },
-  { id: 'test_A', name: '테스트 장소 A', lat: 35.176932, lng: 126.907928, unlockRadius: 40, approachRadius: 100 },
-  { id: 'test_B', name: '테스트 장소 B', lat: 35.176932, lng: 126.907928, unlockRadius: 40, approachRadius: 100 },
+  { id: '10', name: '조아라 기념관',    lat: 35.138778, lng: 126.914419, unlockRadius: 40, approachRadius: 100 },
+  { id: '11', name: '호랑가시나무',     lat: 35.137888, lng: 126.911828, unlockRadius: 40, approachRadius: 100 },
 ]
 
 // ========== 팀 이름 (오케스트라 악기) ==========

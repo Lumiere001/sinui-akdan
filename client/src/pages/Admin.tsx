@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useSocket } from '../hooks/useSocket'
 import type { GameState, ChatMessage, PlayerPosition, TeamStage } from '../../../shared/types'
-import { getCurrentStageInfo, getStageSequence } from '../../../shared/types'
+import { getCurrentStageInfo } from '../../../shared/types'
 import { colors, typography, spacing, radius, transitions } from '../theme'
 import { getTeamName, getTeamLabel } from '../data/gameData'
 
@@ -298,23 +298,20 @@ export function Admin() {
     return { stage: info.stage, remaining: info.stageRemaining, stageIndex: info.stageIndex }
   }
 
+  function formatElapsed(ms: number): string {
+    const totalSec = Math.max(0, Math.floor(ms / 1000))
+    const min = Math.floor(totalSec / 60)
+    const sec = totalSec % 60
+    return `${min}분 ${sec}초`
+  }
+
   function getStepLabel(teamId: number): string {
     const team = gameState?.teams[teamId]
     if (!team) return '-'
     if (team.stage2CompletedAt) {
-      // 소요 시간 계산
-      if (team.startTime && gameState) {
-        const sequence = getStageSequence(team.group)
-        const stage2Index = sequence.indexOf('stage2')
-        let stage2Start = team.startTime
-        for (let i = 0; i < stage2Index; i++) {
-          stage2Start += gameState.durations[sequence[i]]
-        }
-        const elapsedMs = team.stage2CompletedAt - stage2Start
-        const totalSec = Math.max(0, Math.floor(elapsedMs / 1000))
-        const min = Math.floor(totalSec / 60)
-        const sec = totalSec % 60
-        return `완료 (${min}분 ${sec}초)`
+      // 서버에서 확정 저장된 경과 시간 사용 (startTime 변경에 영향받지 않음)
+      if (team.stage2ElapsedMs != null) {
+        return `완료 (${formatElapsed(team.stage2ElapsedMs)})`
       }
       return '완료'
     }
@@ -324,18 +321,12 @@ export function Admin() {
 
   function getS1ElapsedLabel(teamId: number): string | null {
     const team = gameState?.teams[teamId]
-    if (!team || !team.stage1CompletedAt || !team.startTime || !gameState) return null
-    const sequence = getStageSequence(team.group)
-    const stage1Index = sequence.indexOf('stage1')
-    let stage1Start = team.startTime
-    for (let i = 0; i < stage1Index; i++) {
-      stage1Start += gameState.durations[sequence[i]]
+    if (!team || !team.stage1CompletedAt) return null
+    // 서버에서 확정 저장된 경과 시간 사용 (startTime 변경에 영향받지 않음)
+    if (team.stage1ElapsedMs != null) {
+      return formatElapsed(team.stage1ElapsedMs)
     }
-    const elapsedMs = team.stage1CompletedAt - stage1Start
-    const totalSec = Math.max(0, Math.floor(elapsedMs / 1000))
-    const min = Math.floor(totalSec / 60)
-    const sec = totalSec % 60
-    return `${min}분 ${sec}초`
+    return null
   }
 
   // Login screen

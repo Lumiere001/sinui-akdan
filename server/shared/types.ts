@@ -82,11 +82,13 @@ export interface TeamState {
 
   // Stage 1 (실내 방탈출)
   stage1CompletedAt: number | null;          // 관리자가 수동 기록한 완료 시각
+  stage1ElapsedMs: number | null;            // Stage 1 소요 시간 (ms) — 완료 시 확정, 이후 불변
 
   // Stage 2 (실외 GPS 미션)
   currentStep: number;                       // 0=미시작, 1-3=진행 중
   completedSteps: number[];                  // 완료한 단계 배열
   stage2CompletedAt: number | null;          // 3단계 모두 정답 시 자동 기록
+  stage2ElapsedMs: number | null;            // Stage 2 소요 시간 (ms) — 완료 시 확정, 이후 불변
   stage2History: Stage2StepRecord[];         // 단계별 시도 기록
 }
 

@@ -23,10 +23,12 @@ function createInitialGameState(): GameState {
       representative: null,
       // Stage 1
       stage1CompletedAt: null,
+      stage1ElapsedMs: null,
       // Stage 2
       currentStep: 0,
       completedSteps: [],
       stage2CompletedAt: null,
+      stage2ElapsedMs: null,
       stage2History: [],
     };
   }

@@ -2,6 +2,7 @@ import { loadGameState, debouncedSaveGameState, resetDataFile, createInitialGame
 import {
   getCurrentStageInfo,
   computeSkipOffset,
+  getStageSequence,
   DEFAULT_DURATIONS,
   TEST_DURATIONS,
 } from './shared/types.js';
@@ -116,9 +117,22 @@ class GameStateManager {
     if (!team) throw new Error(`Team ${teamId} not found`);
 
     if (!team.stage1CompletedAt) {
-      team.stage1CompletedAt = Date.now();
+      const now = Date.now();
+      team.stage1CompletedAt = now;
+
+      // 경과 시간 확정 저장 (이후 startTime 변경에 영향받지 않음)
+      if (team.startTime) {
+        const sequence = getStageSequence(team.group);
+        const stage1Index = sequence.indexOf('stage1');
+        let stage1Start = team.startTime;
+        for (let i = 0; i < stage1Index; i++) {
+          stage1Start += this.state.durations[sequence[i]];
+        }
+        team.stage1ElapsedMs = Math.max(0, now - stage1Start);
+      }
+
       this.saveState();
-      console.log(`[V3] Team ${teamId} Stage 1 completed at ${new Date().toLocaleTimeString()}`);
+      console.log(`[V3] Team ${teamId} Stage 1 completed at ${new Date().toLocaleTimeString()} (elapsed: ${team.stage1ElapsedMs}ms)`);
     } else {
       console.log(`[V3] Team ${teamId} Stage 1 already completed, ignoring duplicate`);
     }
@@ -215,8 +229,21 @@ class GameStateManager {
       team.currentStep += 1;
     } else {
       // 3단계 모두 완료
-      team.stage2CompletedAt = Date.now();
-      console.log(`[V3] Team ${teamId} Stage 2 all steps completed!`);
+      const now = Date.now();
+      team.stage2CompletedAt = now;
+
+      // 경과 시간 확정 저장 (이후 startTime 변경에 영향받지 않음)
+      if (team.startTime) {
+        const sequence = getStageSequence(team.group);
+        const stage2Index = sequence.indexOf('stage2');
+        let stage2Start = team.startTime;
+        for (let i = 0; i < stage2Index; i++) {
+          stage2Start += this.state.durations[sequence[i]];
+        }
+        team.stage2ElapsedMs = Math.max(0, now - stage2Start);
+      }
+
+      console.log(`[V3] Team ${teamId} Stage 2 all steps completed! (elapsed: ${team.stage2ElapsedMs}ms)`);
     }
 
     this.saveState();
@@ -395,9 +422,11 @@ class GameStateManager {
     team.members = {};
     team.representative = null;
     team.stage1CompletedAt = null;
+    team.stage1ElapsedMs = null;
     team.currentStep = 0;
     team.completedSteps = [];
     team.stage2CompletedAt = null;
+    team.stage2ElapsedMs = null;
     team.stage2History = [];
 
     this.saveState();

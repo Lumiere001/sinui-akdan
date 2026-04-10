@@ -533,7 +533,7 @@ export function Admin() {
                 {/* Stage progress bar */}
                 <div style={{ display: 'flex', gap: 3, marginBottom: spacing.sm }}>
                   {/* The 3 stages in this team's sequence */}
-                  {['stage1', 'stage2', 'stage3'].map((s, idx) => {
+                  {['stage1', 'stage2', 'stage3'].map((s, _idx) => {
                     const isCurrent = currentStage === s
                     const isPast = currentStage === 'finished' ||
                       (s === 'stage1' && (currentStage === 'stage2' || currentStage === 'stage3')) ||

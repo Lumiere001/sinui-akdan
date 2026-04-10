@@ -27,6 +27,7 @@ export function MapView({
   const teamMemberMarkersRef = useRef<any[]>([])
   const [mapLoaded, setMapLoaded] = useState(false)
   const [mapError, setMapError] = useState(false)
+  const [userDragged, setUserDragged] = useState(false)
 
   // Load Kakao Maps API
   useEffect(() => {
@@ -78,6 +79,9 @@ export function MapView({
         level: 4,
       })
       mapInstanceRef.current = map
+      kakao.maps.event.addListener(map, 'dragstart', () => {
+        setUserDragged(true)
+      })
       setTimeout(() => mapInstanceRef.current?.relayout(), 100)
     } catch (err) {
       console.error('Error initializing Kakao Map:', err)
@@ -120,7 +124,9 @@ export function MapView({
     })
     playerMarker.setMap(mapInstanceRef.current)
     playerMarkerRef.current = playerMarker
-    mapInstanceRef.current.panTo(playerPos)
+    if (!userDragged) {
+      mapInstanceRef.current.panTo(playerPos)
+    }
   }, [playerPosition, mapLoaded])
 
   // Update team member markers
@@ -153,6 +159,14 @@ export function MapView({
     return () => observer.disconnect()
   }, [mapLoaded])
 
+  function recenterToPlayer() {
+    if (mapInstanceRef.current && playerPosition) {
+      const { kakao } = window
+      const playerPos = new kakao.maps.LatLng(playerPosition.lat, playerPosition.lng)
+      mapInstanceRef.current.panTo(playerPos)
+    }
+  }
+
   if (mapError) {
     return (
       <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: '#0a0f1e', minHeight: '250px' }}>
@@ -165,7 +179,25 @@ export function MapView({
   }
 
   return (
-    <div ref={mapRef} className="w-full h-full overflow-hidden" style={{ backgroundColor: '#1a1f2e', minHeight: '250px' }} />
+    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: '250px' }}>
+      <div ref={mapRef} style={{ width: '100%', height: '100%', backgroundColor: '#1a1f2e', minHeight: '250px' }} />
+      {userDragged && playerPosition && (
+        <button
+          onClick={recenterToPlayer}
+          style={{
+            position: 'absolute', bottom: 12, right: 12, zIndex: 10,
+            width: 40, height: 40, borderRadius: '50%',
+            background: 'rgba(15, 23, 42, 0.85)', border: '1px solid rgba(212, 168, 83, 0.4)',
+            color: '#d4a853', fontSize: 18, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+          }}
+          title="내 위치로"
+        >
+          📍
+        </button>
+      )}
+    </div>
   )
 }
 

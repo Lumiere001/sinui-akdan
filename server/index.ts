@@ -366,6 +366,7 @@ io.on('connection', (socket) => {
 
       if (!presenceResult.sufficient) {
         console.log(`[Team ${teamId}] Insufficient members at ${locationId} (${presenceResult.count}/${presenceResult.needed})`);
+        socket.emit('error', { message: `팀원이 더 모여야 합니다 (현재 ${presenceResult.count}명/${presenceResult.needed}명)` });
         return;
       }
 

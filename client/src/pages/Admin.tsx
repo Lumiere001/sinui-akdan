@@ -188,11 +188,28 @@ export function Admin() {
       }
     })
 
+    socket.on('admin:allPositions', (allPositions: Record<number, any[]>) => {
+      setGameState(prev => {
+        if (!prev) return prev
+        const updated = { ...prev, teams: { ...prev.teams } }
+        for (const [teamId, positions] of Object.entries(allPositions)) {
+          const tId = Number(teamId)
+          if (updated.teams[tId]) {
+            const members: Record<string, any> = {}
+            positions.forEach((p: any) => { members[p.playerId] = p })
+            updated.teams[tId] = { ...updated.teams[tId], members }
+          }
+        }
+        return updated
+      })
+    })
+
     return () => {
       socket.off('game:state')
       socket.off('connect', joinAdmin)
       socket.off('chat:message')
       socket.off('chat:history')
+      socket.off('admin:allPositions')
     }
   }, [socket, isLoggedIn, password])
 

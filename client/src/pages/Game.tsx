@@ -70,6 +70,9 @@ export function Game() {
   // Stage 2 규칙 확인 여부
   const [stage2RulesAcked, setStage2RulesAcked] = useState(false)
 
+  // GPS 권한 팝업
+  const [showGpsPrompt, setShowGpsPrompt] = useState(false)
+
   // Overlays
   const [showStepComplete, setShowStepComplete] = useState<{ stepNumber: number } | null>(null)
   const [showWrong, setShowWrong] = useState<{ locationId: string } | null>(null)
@@ -109,6 +112,20 @@ export function Game() {
 
     return () => { socket.off('connect', joinTeam) }
   }, [socket, isConnected, teamId, playerId, playerName, teamPassword, isRepresentative, joined])
+
+  // GPS 권한 체크 — join 후 3초 뒤에 위치가 없으면 팝업
+  useEffect(() => {
+    if (!joined) return
+    const timer = setTimeout(() => {
+      if (!position) setShowGpsPrompt(true)
+    }, 3000)
+    return () => clearTimeout(timer)
+  }, [joined, position])
+
+  // 위치가 들어오면 팝업 닫기
+  useEffect(() => {
+    if (position) setShowGpsPrompt(false)
+  }, [position])
 
   // V3: 벽시계 기반 Stage 계산 (매초 갱신)
   useEffect(() => {
@@ -700,6 +717,47 @@ export function Game() {
             <div style={{ fontSize: typography.md, fontWeight: typography.semibold, color: colors.textSecondary }}>
               Stage 2 준비 중...
             </div>
+          </div>
+        )}
+
+        {/* GPS Permission Prompt */}
+        {showGpsPrompt && (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 100,
+            background: 'rgba(0,0,0,0.85)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            padding: spacing.xxxl,
+          }}>
+            <div style={{ fontSize: 48, marginBottom: spacing.lg }}>📍</div>
+            <div style={{ fontSize: typography.xl, fontWeight: typography.bold, color: colors.textPrimary, marginBottom: spacing.md, textAlign: 'center' }}>
+              위치 권한이 필요합니다
+            </div>
+            <div style={{ fontSize: typography.base, color: colors.textMuted, textAlign: 'center', marginBottom: spacing.xl, lineHeight: 1.6 }}>
+              이 게임은 GPS 기반으로 진행됩니다.<br />
+              브라우저에서 위치 권한을 허용해주세요.
+            </div>
+            <div style={{
+              background: colors.surface, border: `1px solid ${colors.borderLight}`,
+              borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.xl,
+              fontSize: typography.sm, color: colors.textMuted, lineHeight: 1.8, maxWidth: 300,
+            }}>
+              <div style={{ fontWeight: typography.semibold, color: colors.textSecondary, marginBottom: spacing.sm }}>허용 방법:</div>
+              <div>iPhone: 설정 &gt; Safari &gt; 위치 &gt; 허용</div>
+              <div>Android: 브라우저 주소창 왼쪽 자물쇠 &gt; 위치 &gt; 허용</div>
+            </div>
+            <button
+              onClick={() => {
+                setShowGpsPrompt(false)
+                window.location.reload()
+              }}
+              style={{
+                padding: `${spacing.md}px ${spacing.xxl}px`, borderRadius: radius.lg,
+                background: colors.accent, border: 'none', color: colors.bg,
+                fontSize: typography.base, fontWeight: typography.bold, cursor: 'pointer',
+              }}
+            >
+              권한 설정 후 새로고침
+            </button>
           </div>
         )}
 

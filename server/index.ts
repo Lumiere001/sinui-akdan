@@ -606,6 +606,68 @@ io.on('connection', (socket) => {
   });
 
   /**
+   * V3: Stage 2 관리자 수동 해금 (출입 불가 등 긴급 상황)
+   */
+  socket.on('admin:forceAdvanceStep', (teamId: number) => {
+    try {
+      if (teamId < 1 || teamId > 10) {
+        socket.emit('error', { message: 'Invalid team ID' });
+        return;
+      }
+      const teamState = gameStateManager.getTeamState(teamId);
+      if (!teamState) {
+        socket.emit('error', { message: `Team ${teamId} not found` });
+        return;
+      }
+      if (teamState.stage !== 'stage2') {
+        socket.emit('error', { message: `Team ${teamId}은 현재 Stage 2가 아닙니다` });
+        return;
+      }
+      if (teamState.stage2CompletedAt) {
+        socket.emit('error', { message: `Team ${teamId}은 이미 Stage 2를 완료했습니다` });
+        return;
+      }
+      if (teamState.currentStep < 1 || teamState.currentStep > 3) {
+        socket.emit('error', { message: `Team ${teamId}의 현재 단계가 유효하지 않습니다` });
+        return;
+      }
+
+      // 현재 단계의 정답 장소로 해금 처리
+      const teamRoute = getTeamRoute(teamId);
+      const currentStepRoute = teamRoute?.steps.find(s => s.stepNumber === teamState.currentStep);
+      const locationId = currentStepRoute?.correctLocation || 'admin-force';
+
+      gameStateManager.advanceStep(teamId, locationId);
+      console.log(`[Admin] Team ${teamId} Step ${teamState.currentStep} force-advanced`);
+
+      const teamRoom = `team:${teamId}`;
+      io.to(teamRoom).emit('team:stepComplete', { stepNumber: teamState.currentStep });
+
+      const updatedTeamState = gameStateManager.getTeamState(teamId);
+      if (updatedTeamState?.stage2CompletedAt) {
+        io.to(teamRoom).emit('team:stage2Complete');
+      } else if (updatedTeamState) {
+        const nextRoute = teamRoute?.steps.find(s => s.stepNumber === updatedTeamState.currentStep);
+        if (nextRoute) {
+          io.to(teamRoom).emit('team:stageUpdate', {
+            currentStep: updatedTeamState.currentStep,
+            hint: nextRoute.hint,
+            locations: {
+              correct: nextRoute.correctLocation,
+              wrong: nextRoute.wrongLocation,
+            },
+          });
+        }
+      }
+
+      broadcastGameState();
+    } catch (error) {
+      console.error('[Error] admin:forceAdvanceStep:', error);
+      socket.emit('error', { message: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  });
+
+  /**
    * V3: 다음 Stage 건너뛰기
    */
   socket.on('admin:skipStage', (teamId: number) => {

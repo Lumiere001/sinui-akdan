@@ -261,6 +261,13 @@ export function Admin() {
   function recordStage1Complete(teamId: number) {
     socket?.emit('admin:recordStage1Complete', teamId)
   }
+  function forceAdvanceStep(teamId: number) {
+    const team = gameState?.teams[teamId]
+    if (!team) return
+    if (confirm(`${getTeamLabel(teamId)}의 Stage 2 ${team.currentStep}단계를 수동 해금하시겠습니까?`)) {
+      socket?.emit('admin:forceAdvanceStep', teamId)
+    }
+  }
   function skipStage(teamId: number) {
     if (confirm(`${getTeamLabel(teamId)}의 현재 Stage를 건너뛰시겠습니까?`)) {
       socket?.emit('admin:skipStage', teamId)
@@ -649,6 +656,20 @@ export function Admin() {
                         {h.isCorrect ? '✓' : '✗'}
                       </span>
                     ))}
+                  </div>
+                )}
+
+                {/* Stage 2 수동 해금 버튼 */}
+                {currentStage === 'stage2' && !isS2Complete && team?.currentStep >= 1 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs }}>
+                    <span style={{ fontSize: typography.xs, color: colors.textMuted }}>
+                      {team.currentStep}단계 진행 중
+                    </span>
+                    <button onClick={() => forceAdvanceStep(tId)} style={{
+                      padding: `2px ${spacing.sm}px`, borderRadius: radius.sm, fontSize: typography.xs,
+                      background: colors.infoBg || 'rgba(59,130,246,0.1)', border: `1px solid ${colors.infoBorder || 'rgba(59,130,246,0.3)'}`,
+                      color: colors.info || '#3b82f6', cursor: 'pointer', fontFamily: typography.fontFamily,
+                    }}>🔓 수동 해금</button>
                   </div>
                 )}
 

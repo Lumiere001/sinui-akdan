@@ -550,7 +550,7 @@ export function Game() {
                 {[
                   { icon: '📍', title: '장소 찾기', desc: '힌트를 읽고 3개의 장소를 순서대로 찾아가세요. 각 단계마다 2곳 중 정답 장소를 골라야 합니다.' },
                   { icon: '⏱', title: '제한 시간', desc: '제한 시간 안에 3개의 장소를 모두 찾으면 악보 조각을 획득합니다.' },
-                  { icon: '👥', title: '팀 협동', desc: '팀원 4명 이상이 정답 장소 근처(40m)에 모여야 해금됩니다. 함께 움직이세요!' },
+                  { icon: '👥', title: '팀 협동', desc: '팀원 3명 이상이 정답 장소 근처(40m)에 모여야 해금됩니다. 함께 움직이세요!' },
                 ].map((rule, i) => (
                   <div key={i} style={{
                     display: 'flex', gap: spacing.md, alignItems: 'flex-start',

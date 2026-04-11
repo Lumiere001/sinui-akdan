@@ -234,7 +234,7 @@ io.on('connection', (socket) => {
       io.to(teamRoom).emit('team:memberCount', {
         locationId: '',
         count: gameStateManager.getTeamMembers(teamId).length,
-        needed: 4,
+        needed: 3,
       });
 
       broadcastGameState();

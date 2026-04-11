@@ -82,7 +82,7 @@ export function checkTeamPresence(
   gameStateManager: any,
 ): TeamPresenceResult {
   const TEAM_CHECK_RADIUS = 40; // meters (unlockRadius와 동일)
-  const REQUIRED_MEMBERS = 4;
+  const REQUIRED_MEMBERS = 3;
 
   const location = getLocation(locationId);
   if (!location) {

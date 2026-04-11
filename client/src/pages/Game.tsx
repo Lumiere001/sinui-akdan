@@ -877,6 +877,54 @@ export function Game() {
               {formatTime(stageRemaining)}
             </div>
 
+            {/* 정답 입력 */}
+            <div style={{
+              background: colors.cardBg, border: `1px solid ${colors.border}`,
+              borderRadius: radius.lg, padding: spacing.lg, maxWidth: 340, margin: `0 auto ${spacing.lg}px`,
+            }}>
+              <div style={{ fontSize: typography.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>
+                🔑 정답을 입력하세요
+              </div>
+              <div style={{ display: 'flex', gap: spacing.xs }}>
+                <input
+                  type="text"
+                  placeholder="정답 입력"
+                  id="stage3-answer"
+                  style={{
+                    flex: 1, padding: `${spacing.sm}px ${spacing.md}px`, borderRadius: radius.sm,
+                    border: `1px solid ${colors.border}`, background: colors.bg, color: colors.textPrimary,
+                    fontSize: typography.base, fontFamily: typography.fontFamily, outline: 'none',
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const input = e.target as HTMLInputElement
+                      if (input.value.trim() === 'gods/plan.enn.kr') {
+                        window.open('https://youtu.be/QHxTU8oxvzM', '_blank')
+                      } else {
+                        alert('오답입니다. 다시 시도해주세요!')
+                      }
+                    }
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    const input = document.getElementById('stage3-answer') as HTMLInputElement
+                    if (input && input.value.trim() === 'gods/plan.enn.kr') {
+                      window.open('https://youtu.be/QHxTU8oxvzM', '_blank')
+                    } else {
+                      alert('오답입니다. 다시 시도해주세요!')
+                    }
+                  }}
+                  style={{
+                    padding: `${spacing.sm}px ${spacing.md}px`, borderRadius: radius.sm,
+                    background: colors.accent, color: '#fff', border: 'none',
+                    fontSize: typography.sm, fontWeight: typography.semibold, cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >확인</button>
+              </div>
+            </div>
+
             <div style={{
               background: colors.warningBg, border: `1px solid ${colors.warningBorder}`,
               borderRadius: radius.lg, padding: spacing.lg, maxWidth: 340, margin: '0 auto',

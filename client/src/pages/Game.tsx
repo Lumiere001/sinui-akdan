@@ -879,7 +879,7 @@ export function Game() {
 
             {/* 정답 입력 */}
             <div style={{
-              background: colors.cardBg, border: `1px solid ${colors.border}`,
+              background: colors.surface, border: `1px solid ${colors.border}`,
               borderRadius: radius.lg, padding: spacing.lg, maxWidth: 340, margin: `0 auto ${spacing.lg}px`,
             }}>
               <div style={{ fontSize: typography.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>

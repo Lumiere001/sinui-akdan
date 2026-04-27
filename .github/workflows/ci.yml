@@ -85,6 +85,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # 운영 배포 기준 Docker 이미지를 빌드해 컨테이너가 정상적으로
+      # 기동되고 /health 응답을 반환하는지 검증한다.
+      #
+      # Note: client/Dockerfile 은 로컬 개발/데모용으로 유지하지만 CI 에서는
+      # 검증하지 않는다. 운영 환경(Render)에서는 client 를 Static Site 로
+      # 호스팅하므로 Docker 가 실제로 사용되지 않으며, client 의 빌드 정합성은
+      # 위 client 잡(lint/typecheck/build)에서 이미 검증되었다.
       - name: Build server image
         uses: docker/build-push-action@v6
         with:
@@ -92,19 +99,6 @@ jobs:
           file: ./server/Dockerfile
           push: false
           tags: sinui-akdan-server:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build client image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./client
-          file: ./client/Dockerfile
-          push: false
-          tags: sinui-akdan-client:ci
-          build-args: |
-            VITE_SERVER_URL=http://localhost:3001
-            VITE_KAKAO_MAP_KEY=dummy_for_ci_build
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

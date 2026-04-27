@@ -393,7 +393,7 @@ export function Admin() {
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h1 style={{ fontSize: typography.lg, fontWeight: typography.bold, margin: 0 }}>🎼 V3 관리자</h1>
+            <h1 style={{ fontSize: typography.lg, fontWeight: typography.bold, margin: 0 }}>🎼 관리자</h1>
             <div style={{ fontSize: typography.xs, color: colors.textMuted, marginTop: 2, display: 'flex', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', display: 'inline-block', background: isConnected ? colors.accent : colors.error }} />

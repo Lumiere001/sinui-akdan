@@ -11,8 +11,11 @@ coverage/
 .vite/
 *.tmp
 
-# 게임 데이터 백업 (Render에는 영속 디스크가 없으므로 운영용으로만 사용)
+# 게임 운영 데이터 — 참가자 실명/GPS 좌표 포함 가능, 절대 git 추적 금지
 data.json
+data_backup.json
+data_backup*.json
+*.backup.json
 
 # OS / 에디터
 Thumbs.db

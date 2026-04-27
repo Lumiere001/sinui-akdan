@@ -3,7 +3,7 @@
 > **DevOps 파이프라인 중간 과제 — 김동규 / 학번 223402**
 > Git → CI(GitHub Actions) → Docker → Render 의 전 과정을 한 줄기로 구축한 개인 프로젝트입니다.
 
-광주 CCC 교회 D&I 행사용으로 시작된 GPS 기반 실외 보물찾기 웹 앱이며, 본 저장소는 **DevOps 파이프라인 과제 제출본**으로 Vercel/Railway에서 운영하던 코드를 Render 기반으로 재구성한 버전입니다.
+광주 CCC 교회 D&I 행사용으로 만든 GPS 기반 실외 보물찾기 웹 앱이며, 본 저장소는 **DevOps 파이프라인 과제 제출본**으로 Git → CI(GitHub Actions) → Docker → Render 4단계 자동화 파이프라인이 적용되어 있습니다.
 
 ---
 

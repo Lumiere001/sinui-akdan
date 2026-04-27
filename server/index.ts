@@ -25,7 +25,6 @@ const ALLOWED_ORIGINS = Array.from(
   new Set([
     CLIENT_URL,
     'http://localhost:5173',
-    'https://sinui-akdan.vercel.app',
     ...EXTRA_ALLOWED_ORIGINS,
   ]),
 );

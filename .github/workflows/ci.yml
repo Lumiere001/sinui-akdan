@@ -28,6 +28,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # 의도적 중복 정합성 가드:
+      # server/shared/types.ts 는 server/Dockerfile 빌드 컨텍스트(./server) 내에
+      # 위치해야 하므로 root shared/types.ts 와 동일 사본으로 유지된다. 두 파일이
+      # 갈라지면 빌드는 통과하지만 client / server 간 타입이 어긋나므로 여기서
+      # 차단한다.
+      - name: Verify shared/types.ts is in sync between root and server
+        working-directory: ${{ github.workspace }}
+        run: diff -q shared/types.ts server/shared/types.ts
+
       - name: Type check
         run: npx tsc --noEmit
 

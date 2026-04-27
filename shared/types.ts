@@ -1,4 +1,10 @@
 // ========== V3 공유 타입 정의 ==========
+//
+// 이 파일은 두 위치(root shared/types.ts 와 server/shared/types.ts)에 동일
+// 사본으로 유지된다. server 의 Docker 빌드 컨텍스트(./server)가 root 의 shared
+// 폴더에 접근할 수 없는 구조적 제약 때문이다. CI(.github/workflows/ci.yml)가
+// 매 push 마다 두 파일이 일치하는지 diff 로 검사하므로, 이 파일을 수정하면
+// 다른 사본도 같은 내용으로 함께 갱신해야 한다.
 
 // Location information
 export interface Location {

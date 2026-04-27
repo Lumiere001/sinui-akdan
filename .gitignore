@@ -2,5 +2,19 @@ node_modules/
 dist/
 .env
 .env.local
+.env.*
 *.log
 .DS_Store
+
+# 코딩/빌드 부산물
+coverage/
+.vite/
+*.tmp
+
+# 게임 데이터 백업 (Render에는 영속 디스크가 없으므로 운영용으로만 사용)
+data.json
+
+# OS / 에디터
+Thumbs.db
+.idea/
+.vscode/

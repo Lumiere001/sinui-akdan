@@ -16,7 +16,19 @@ import type {
 // ========== Configuration ==========
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
-const ALLOWED_ORIGINS = [CLIENT_URL, 'https://sinui-akdan.vercel.app', 'http://localhost:5173'];
+// 추가 허용 도메인은 EXTRA_ALLOWED_ORIGINS 환경변수에 콤마(,)로 구분해 등록
+const EXTRA_ALLOWED_ORIGINS = (process.env.EXTRA_ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+const ALLOWED_ORIGINS = Array.from(
+  new Set([
+    CLIENT_URL,
+    'http://localhost:5173',
+    'https://sinui-akdan.vercel.app',
+    ...EXTRA_ALLOWED_ORIGINS,
+  ]),
+);
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin2024';
 
 // Team passwords (server-side validation) — keep in sync with client/src/data/gameData.ts

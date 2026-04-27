@@ -30,7 +30,6 @@ services:
   - type: web
     name: sinui-akdan-client
     runtime: static
-    plan: free
     rootDir: client
     buildCommand: npm ci && npm run build
     staticPublishPath: ./dist

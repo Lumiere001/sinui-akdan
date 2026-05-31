@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>신의 악단 — GPS 이상 탐지기 (V5 MLOps)</title>
+  <style>
+    body { font-family: -apple-system, system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
+    h1 { font-size: 1.4rem; }
+    .row { display: flex; gap: 8px; margin: 8px 0; }
+    input { flex: 1; padding: 8px; font-size: 1rem; }
+    button { padding: 8px 14px; font-size: 0.95rem; cursor: pointer; }
+    .presets button { background: #f0f0f0; border: 1px solid #ccc; border-radius: 6px; }
+    #result, #feedbackResult { white-space: pre-line; font-size: 1.05rem; margin-top: 12px; }
+    .muted { color: #888; font-size: 0.85rem; }
+    hr { border: none; border-top: 1px solid #eee; margin: 20px 0; }
+  </style>
+</head>
+<body>
+  <h1>🎼 신의 악단 — GPS 이상 탐지기</h1>
+  <p class="muted">플레이어의 GPS 좌표가 양림동 행사 정상 범위인지(정상) vs 이탈/오기록(이탈)인지 판별합니다.</p>
+
+  <div class="row">
+    <input id="lat" type="number" step="any" placeholder="위도 (lat)" value="35.1383" />
+    <input id="lng" type="number" step="any" placeholder="경도 (lng)" value="126.9159" />
+  </div>
+  <div class="row presets">
+    <button onclick="setLatLng(35.1383,126.9159)">양림동 정상 예시</button>
+    <button onclick="setLatLng(35.79,127.11)">이탈 예시(전주)</button>
+    <button onclick="setLatLng(0,0)">GPS 미수신</button>
+  </div>
+  <button onclick="classify()">이상 탐지</button>
+  <h3 id="result"></h3>
+
+  <hr />
+  <p class="muted">결과가 틀렸나요? 정답을 알려주면 재학습에 반영됩니다 (Human-in-the-loop).</p>
+  <div class="row">
+    <button onclick="sendFeedback('정상')">정답: 정상</button>
+    <button onclick="sendFeedback('이탈')">정답: 이탈</button>
+  </div>
+  <h3 id="feedbackResult"></h3>
+
+  <script>
+    let lastResult = null;
+
+    function setLatLng(lat, lng) {
+      document.getElementById("lat").value = lat;
+      document.getElementById("lng").value = lng;
+    }
+
+    function classify() {
+      const lat = parseFloat(document.getElementById("lat").value);
+      const lng = parseFloat(document.getElementById("lng").value);
+      fetch("/classify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lat, lng })
+      })
+        .then(res => res.json())
+        .then(data => {
+          let msg = "결과: " + data.label + " (score=" + data.score + ")";
+          msg += "\n모델타입(서빙): " + data.serving_model;
+          if (data.model_info) {
+            msg += "\n모델: " + data.model_info.model_type;
+            msg += "\nTest Acc: " + data.model_info.test_accuracy;
+            msg += "\nRun ID: " + data.model_info.run_id;
+          }
+          document.getElementById("result").innerText = msg;
+          lastResult = { lat, lng, prediction: data.label, score: data.score, serving_model: data.serving_model };
+        })
+        .catch(() => { document.getElementById("result").innerText = "에러 발생"; });
+    }
+
+    function sendFeedback(correctLabel) {
+      if (!lastResult) {
+        document.getElementById("feedbackResult").innerText = "먼저 이상 탐지를 실행하세요.";
+        return;
+      }
+      fetch("/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lat: lastResult.lat,
+          lng: lastResult.lng,
+          prediction: lastResult.prediction,
+          correct_label: correctLabel,
+          score: lastResult.score,
+          serving_model: lastResult.serving_model
+        })
+      })
+        .then(res => res.json())
+        .then(() => {
+          document.getElementById("feedbackResult").innerText = "피드백 저장 완료: " + correctLabel;
+        })
+        .catch(() => { document.getElementById("feedbackResult").innerText = "피드백 저장 실패"; });
+    }
+  </script>
+</body>
+</html>

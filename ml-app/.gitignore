@@ -1,0 +1,21 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.env
+!.env.example
+google_key.json
+
+# MLflow 로컬 산출물
+mlflow.db
+mlflow_test.db
+mlruns/
+mlartifacts/
+ml/artifacts/
+
+# 운영 로그
+logs/
+
+# 실데이터 파생물 (개인 위치정보 → 커밋 금지). train/test(합성)는 커밋함.
+ml/data/real_eval.csv

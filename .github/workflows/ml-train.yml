@@ -1,0 +1,44 @@
+name: Train ML Model
+
+# 코드가 깨지면 학습하지 않도록 test → train 순서 (수업 12_2).
+# Registry 등록은 secrets.MLFLOW_TRACKING_URI(Render MLflow) 가 있으면 원격으로,
+# 없으면 로컬 sqlite(임시)로 진행되어 실패하지 않는다.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ml-app/ml/**'
+      - 'ml-app/app/**'
+      - 'ml-app/requirements.txt'
+      - '.github/workflows/ml-train.yml'
+  workflow_dispatch:
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ml-app
+    env:
+      MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run tests
+        run: pytest -q
+      - name: Build dataset
+        run: python -m ml.data.make_dataset
+      - name: Train + register + promote champion
+        run: python -m ml.train
+      - name: Upload trained model artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trained-model-files
+          path: ml-app/ml/artifacts/

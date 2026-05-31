@@ -51,3 +51,59 @@ services:
       - path: /assets/*
         name: Cache-Control
         value: public, max-age=604800, immutable
+
+  # ---------------- MLflow Tracking Server (V5 MLOps) ----------------
+  # 백엔드=Neon Postgres(DATABASE_URL), 아티팩트=Cloudflare R2(S3 호환).
+  # 자세한 셋업: mlflow-server/README.md
+  - type: web
+    name: sinui-akdan-mlflow
+    runtime: docker
+    plan: free
+    region: singapore
+    rootDir: mlflow-server
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: MLFLOW_ARTIFACT_ROOT
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: MLFLOW_S3_ENDPOINT_URL
+        sync: false
+      - key: AWS_DEFAULT_REGION
+        value: auto
+
+  # ---------------- GPS 이상탐지 ML 서비스 (V5 MLOps) ----------------
+  - type: web
+    name: sinui-akdan-ml
+    runtime: docker
+    plan: free
+    region: singapore
+    rootDir: ml-app
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: MODEL_MODE
+        value: ml
+      # 배포된 MLflow URL(sinui-akdan-mlflow)을 넣는다
+      - key: MLFLOW_TRACKING_URI
+        sync: false
+      - key: MODEL_NAME
+        value: gps-anomaly-model
+      - key: CANARY_ENABLED
+        value: "true"
+      - key: CANARY_RATIO
+        value: "0.1"
+      - key: GH_TOKEN
+        sync: false
+      - key: GH_REPO
+        sync: false
+      - key: GOOGLE_SHEET_NAME
+        sync: false
+      - key: GOOGLE_SERVICE_ACCOUNT_JSON
+        sync: false
